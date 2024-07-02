@@ -1,0 +1,60 @@
+CHECKPOINT:
+  eval_steps: 2000
+  load_from_checkpoint: null
+  partial_restore: false
+  save_path: models/saved_models/MTLCC/TSViT
+  save_steps: 1000000
+  train_metrics_steps: 1
+DATASETS:
+  eval:
+    base_dir: /Users/maral/Downloads/
+    batch_size: 32
+    bidir_input: false
+    dataset: MTLCC
+    extra_data: null
+    max_seq_len: 16
+    num_workers: 4
+    paths: /Users/maral/Downloads/data_IJGI18/datasets/full/240pkl/eval.csv
+  train:
+    base_dir: /Users/maral/Downloads/
+    batch_size: 32
+    bidir_input: false
+    dataset: MTLCC
+    extra_data: null
+    max_seq_len: 16
+    num_workers: 4
+    paths: /Users/maral/Downloads/data_IJGI18/datasets/full/240pkl/eval.csv
+MODEL:
+  architecture: TSViT
+  dim: 128
+  dim_head: 64
+  dropout: 0.0
+  emb_dropout: 0.0
+  heads: 4
+  ignore_background: true
+  img_res: 24
+  max_seq_len: 16
+  num_channels: 14
+  num_classes: 17
+  num_features: 16
+  patch_size: 2
+  pool: cls
+  scale_dim: 4
+  spatial_depth: 4
+  temporal_depth: 4
+SOLVER:
+  class_weights: null
+  loss_function: masked_cross_entropy
+  lr_base: 1e-3
+  lr_min: 5e-4
+  lr_scheduler: cosine
+  lr_start: 1e-8
+  num_cycles: 1
+  num_epochs:200
+  num_warmup_epochs: 10
+  reset_lr: true
+  steps: (0, 80000)
+  weight_decay: 0.0
+local_device_ids:
+- 0
+- 1
