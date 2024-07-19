@@ -15,7 +15,7 @@ def get_model(config, device):
         return UNet3D(model_config).to(device)
 
     if model_config['architecture'] == "UNET2D-CLSTM":  # "FCN_CRNN":
-        return FCN_CRNN(model_config).to(device)
+        return FCN_CRNN(model_config).cuda()
 
     if model_config['architecture'] == "ConvBiRNN":
         return BiRNNSequentialEncoder(model_config, device).to(device)

@@ -1,8 +1,6 @@
 import sys
 import os
 sys.path.insert(0, os.getcwd())
-# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-
 import argparse
 import torch
 import torch.nn as nn
@@ -27,14 +25,9 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
     def train_step(net, sample, loss_fn, optimizer, device, loss_input_fn):
         optimizer.zero_grad()
         # print(sample['inputs'].shape)
-        # print(sample['inputs'].to(device).shape,"**************U")
         outputs = net(sample['inputs'].to(device))
         outputs = outputs.permute(0, 2, 3, 1)
-        print("device ",device)
-        print("inputs", sample["inputs"].shape)
-        print(sample.keys())
         ground_truth = loss_input_fn(sample, device)
-        exit()
         loss = loss_fn['mean'](outputs, ground_truth)
         loss.backward()
         optimizer.step()
@@ -48,12 +41,18 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
         net.eval()
         with torch.no_grad():
             for step, sample in enumerate(evalloader):
+                # sample_inputs = sample['inputs'].to(device) # torch.Size([24, 60, 24, 24, 11])
+                # print("evaluate: sample_inputs ",sample_inputs.shape)
                 logits = net(sample['inputs'].to(device))
+                print("evaluate: logits ",logits.shape)
                 logits = logits.permute(0, 2, 3, 1)
-                _, predicted = torch.max(logits.data, -1)
+                _, predicted = torch.max(logits.data, -1) # torch.Size([24, 24, 24])
+                print("evaluate: predicted ",predicted.shape)
                 ground_truth = loss_input_fn(sample, device)
+                # print("evaluate: ground_truth ",ground_truth.shape)
                 loss = loss_fn['all'](logits, ground_truth)
                 target, mask = ground_truth
+                # print("evaluate: mask ",mask.shape)
                 if mask is not None:
                     predicted_all.append(predicted.view(-1)[mask.view(-1)].cpu().numpy())
                     labels_all.append(target.view(-1)[mask.view(-1)].cpu().numpy())
@@ -119,8 +118,6 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
 
     print("current learn rate: ", lr)
 
-    print("local_device_ids ",local_device_ids)
-    # exit()
     if len(local_device_ids) > 1:
         net = nn.DataParallel(net, device_ids=local_device_ids)
     net.to(device)
@@ -148,6 +145,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
     net.train()
     for epoch in range(start_epoch, start_epoch + num_epochs):  # loop over the dataset multiple times
         for step, sample in enumerate(dataloaders['train']):
+            # print("sample inputs shape: ", sample)
             abs_step = start_global + (epoch - start_epoch) * num_steps_train + step
             logits, ground_truth, loss = train_step(net, sample, loss_fn, optimizer, device, loss_input_fn=loss_input_fn)
             if len(ground_truth) == 2:
@@ -162,9 +160,9 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                     logits=logits, labels=labels, unk_masks=unk_masks, n_classes=num_classes, loss=loss, epoch=epoch,
                     step=step)
                 write_mean_summaries(writer, batch_metrics, abs_step, mode="train", optimizer=optimizer)
-                print("abs_step: %d, epoch: %d, step: %5d, loss: %.7f, batch_iou: %.4f, batch accuracy: %.4f, batch precision: %.4f, "
+                print("abs_step: %d, train_metrics_steps: %d, epoch: %d, step: %5d, loss: %.7f, batch_iou: %.4f, batch accuracy: %.4f, batch precision: %.4f, "
                       "batch recall: %.4f, batch F1: %.4f" %
-                      (abs_step, epoch, step + 1, loss, batch_metrics['IOU'], batch_metrics['Accuracy'], batch_metrics['Precision'],
+                      (abs_step,train_metrics_steps, epoch, step + 1, loss, batch_metrics['IOU'], batch_metrics['Accuracy'], batch_metrics['Precision'],
                        batch_metrics['Recall'], batch_metrics['F1']))
 
             if abs_step % save_steps == 0:

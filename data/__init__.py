@@ -9,8 +9,12 @@ from utils.config_files_utils import get_params_values, read_yaml
 
 
 DATASET_INFO = read_yaml("data/datasets.yaml")
+
+
 def get_dataloaders(config):
 
+    print("Loading data...\n",config)
+    # exit()
 
     model_config = config['MODEL']
     train_config = config['DATASETS']['train']
@@ -23,7 +27,6 @@ def get_dataloaders(config):
     train_config['base_dir'] = DATASET_INFO[train_config['dataset']]['basedir']
     train_config['paths'] = DATASET_INFO[train_config['dataset']]['paths_train']
     if train_config['dataset'] == 'MTLCC':
-        print(train_config['paths'],"path",train_config['base_dir'],"base_dir",train_config['batch_size'])
         dataloaders['train'] = get_mtlcc_dataloader(
             paths_file=train_config['paths'], root_dir=train_config['base_dir'],
             transform=MTLCC_transform(model_config, train_config, is_training=True),

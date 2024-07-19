@@ -4,9 +4,8 @@ from keras.layers import Dense, Conv2D, MaxPooling2D, ConvLSTM2D, Lambda
 from keras.layers import Conv1D, MaxPooling1D
 from keras import regularizers
 from keras.layers import Bidirectional, TimeDistributed, concatenate
-# from keras.backend import reverse
-# from keras.engine.input_layer import Input
-from tensorflow.keras.layers import Input
+from keras.backend import reverse
+from keras.engine.input_layer import Input
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression

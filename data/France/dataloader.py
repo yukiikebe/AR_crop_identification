@@ -7,8 +7,6 @@ import torch.utils.data
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.config_files_utils import read_yaml, copy_yaml
-
 # Ignore warnings
 import warnings
 warnings.filterwarnings("ignore")
@@ -56,6 +54,25 @@ class SatImDataset(Dataset):
 
     def __len__(self):
         return len(self.data_paths)
+
+    # def __getitem__(self, idx):
+    #     if torch.is_tensor(idx):
+    #         idx = idx.tolist()
+
+    #     img_name = os.path.join(self.root_dir, self.data_paths.iloc[idx, 0])
+
+    #     with open(img_name, 'rb') as handle:
+    #         sample = pickle.load(handle, encoding='latin1')
+
+    #     if self.transform:    from utils.config_files_utils import read_yaml, copy_yaml
+    # import numpy as np
+    # import matplotlib.pyplot as plt
+    #         sample = self.transform(sample)
+
+    #     if self.return_paths:
+    #         return sample, img_name
+        
+    #     return sample
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):

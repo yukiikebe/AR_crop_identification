@@ -58,37 +58,49 @@ class SatImDataset(Dataset):
             idx = idx.tolist()
 
         img_name = os.path.join(self.root_dir, self.data_paths.iloc[idx, 0])
+        # print("img_name ", img_name)
+        # exit()
 
         with open(img_name, 'rb') as handle:
-            sample = pickle.load(handle, encoding='latin1')
-
+            sample = pickle.load(handle, encoding='latin1') # (['img', 'labels', 'doy'])
+        # print("before transform" , sample['img'].shape) #torch.Size([60, 24, 24, 11])
         if self.transform:
-            sample = self.transform(sample)
+            sample = self.transform(sample)  #dict_keys(['inputs', 'labels', 'seq_lengths', 'unk_masks'])
+        # print("sample ", sample.keys())
+        # print("after transform" , sample['inputs'].shape) #torch.Size([60, 24, 24, 11])
+        # print(img_name , sample['inputs'].shape) #torch.Size([60, 24, 24, 11])
+        # exit()
 
+        # print("self.return_paths ", self.return_paths)
+
+        # before transform (43, 10, 24, 24)
+        # aafter transform torch.Size([60, 24, 24, 11])
+        
         if self.return_paths:
             return sample, img_name
         
         return sample
 
-    def read(self, idx, abs=False):
-        """
-        read single dataset sample corresponding to idx (index number) without any data transform applied
-        """
-        if type(idx) == int:
-            img_name = os.path.join(self.root_dir,
-                                    self.data_paths.iloc[idx, 0])
-        if type(idx) == str:
-            if abs:
-                img_name = idx
-            else:
-                img_name = os.path.join(self.root_dir, idx)
-        with open(img_name, 'rb') as handle:
-            sample = pickle.load(handle, encoding='latin1')
-        return sample
+#     def read(self, idx, abs=False):
+#         """
+#         read single dataset sample corresponding to idx (index number) without any data transform applied
+#         """
+#         if type(idx) == int:
+#             img_name = os.path.join(self.root_dir,
+#                                     self.data_paths.iloc[idx, 0])
+#         if type(idx) == str:
+#             if abs:
+#                 img_name = idx
+#             else:
+#                 img_name = os.path.join(self.root_dir, idx)
+#         with open(img_name, 'rb') as handle:
+#             sample = pickle.load(handle, encoding='latin1')
+#         return sample
     
     
-def my_collate(batch):
-    "Filter out sample where mask is zero everywhere"
-    idx = [b['unk_masks'].sum(dim=(0, 1, 2)) != 0 for b in batch]
-    batch = [b for i, b in enumerate(batch) if idx[i]]
-    return torch.utils.data.dataloader.default_collate(batch)
+# def my_collate(batch):
+
+#     "Filter out sample where mask is zero everywhere"
+#     idx = [b['unk_masks'].sum(dim=(0, 1, 2)) != 0 for b in batch]
+#     batch = [b for i, b in enumerate(batch) if idx[i]]
+#     return torch.utils.data.dataloader.default_collate(batch)

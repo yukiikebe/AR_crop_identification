@@ -22,10 +22,7 @@ def train_and_evaluate(net, dataloaders, config, device):
     def train_step(net, sample, loss_fn, optimizer, device, model_input_fn, loss_input_fn):
         optimizer.zero_grad()
         # model forward pass
-        # print(sample,device)
-        # print(net)
         outputs = net(model_input_fn(sample, device))
-        # print(outputs,"Ma")
         outputs = outputs.permute(0, 2, 3, 1)
         # model backward pass
         ground_truth = loss_input_fn(sample, device)
@@ -103,8 +100,7 @@ def train_and_evaluate(net, dataloaders, config, device):
     #------------------------------------------------------------------------------------------------------------------#
     num_classes = config['MODEL']['num_classes']
     num_epochs = config['SOLVER']['num_epochs']
-    print( config['SOLVER'])
-    lr = float(config['SOLVER']['lr_base'])
+    lr = config['SOLVER']['lr_base']
     dr = config['SOLVER']['lr_decay']
     reset_lr = config['SOLVER']['reset_lr']
     reset_lr_at_epoch = get_params_values(config['SOLVER'], "reset_lr_at_epoch", False)
@@ -116,7 +112,7 @@ def train_and_evaluate(net, dataloaders, config, device):
     partial_restore = config['CHECKPOINT']["partial_restore"]
     num_steps_train = len(dataloaders['train'])
     local_device_ids = config['local_device_ids']
-    weight_decay = float(get_params_values(config['SOLVER'], "weight_decay", 0))
+    weight_decay = get_params_values(config['SOLVER'], "weight_decay", 0)
     dr_epochs = get_params_values(config['SOLVER'], "dr_epochs", 2)
     restart_clock = get_params_values(config['CHECKPOINT'], "restart_clock", False)
 
@@ -136,7 +132,7 @@ def train_and_evaluate(net, dataloaders, config, device):
 
     if len(local_device_ids) > 1:
         net = nn.DataParallel(net, device_ids=local_device_ids)
-    # net.to('cuda')
+    net.to(device)
 
     if save_path and (not os.path.exists(save_path)):
         os.makedirs(save_path)
@@ -164,7 +160,7 @@ def train_and_evaluate(net, dataloaders, config, device):
         for step, sample in enumerate(dataloaders['train']):
 
             abs_step = start_global + (epoch - start_epoch) * num_steps_train + step
-            print(sample.shape)
+            
             logits, ground_truth, loss = train_step(net, sample, loss_fn, optimizer, device,
                                                     model_input_fn=model_input_fn, loss_input_fn=loss_input_fn)
             labels, unk_masks = ground_truth
@@ -215,7 +211,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='gather relative paths for MTLCC tfrecords')
     parser.add_argument('--config_file', type=str, default="configs/MTLCC/UNet3Df.yaml",
                         help='.yaml configuration file to use')
-    parser.add_argument('--gpu_ids', type=list, default=["0"], action='store',
+    parser.add_argument('--gpu_ids', type=list, default=["0", "1"], action='store',
                         help='gpu ids for running experiment')  # , required=True)
     opt = parser.parse_args()
     gpu_ids = opt.gpu_ids
@@ -223,12 +219,12 @@ if __name__ == "__main__":
 
     device_ids = [int(i) for i in gpu_ids if i.isnumeric()]
     device = get_device(device_ids, allow_cpu=False)
-    device ='cuda'
+
     config = read_yaml(config_file)
     config['local_device_ids'] = device_ids
 
     dataloaders = get_dataloaders(config)
 
-    net = get_model(config, 'cuda')
+    net = get_model(config, device)
 
     train_and_evaluate(net, dataloaders, config, device)

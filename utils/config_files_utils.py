@@ -1,4 +1,4 @@
-from yaml import load, dump, SafeLoader
+from yaml import load, dump
 import os
 
 
@@ -13,11 +13,10 @@ def get_params_values(args, key, default=None):
     #    raise ValueError("No value provided in config file for %s, default value not provided")
 
 
-# yaml_file = 'configs/test.yaml'
+#yaml_file = 'configs/test.yaml'
 def read_yaml(yaml_file):
     with open(yaml_file, 'r') as config_file:
-        # yaml_dict = load(config_file)
-        yaml_dict = load(config_file, Loader=SafeLoader)
+        yaml_dict = load(config_file)
     return yaml_dict
 
 

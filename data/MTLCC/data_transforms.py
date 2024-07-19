@@ -87,8 +87,8 @@ class ToTensor(object):
         sample['x10'] = torch.tensor(sample['x10']).type(torch.float32)
         sample['x20'] = torch.tensor(sample['x20']).type(torch.float32)
         sample['x60'] = torch.tensor(sample['x60']).type(torch.float32)
-        # sample['day'] = torch.tensor(sample['day']).type(torch.float32)
-        # sample['year'] = torch.tensor(sample['year']).type(torch.float32)
+        sample['day'] = torch.tensor(sample['day']).type(torch.float32)
+        sample['year'] = torch.tensor(sample['year']).type(torch.float32)
         sample['labels'] = torch.unsqueeze(
             torch.from_numpy(sample['labels'].astype(np.int64)),
             dim=-1)
@@ -146,8 +146,8 @@ class Normalize(object):
         sample['x10'] = sample['x10'] * 1e-4
         sample['x20'] = sample['x20'] * 1e-4
         sample['x60'] = sample['x60'] * 1e-4
-        # sample['day'] = sample['day'] / 365.0001  # 365 + h, h = 0.0001 to avoid placing day 365 in out of bounds bin
-        # sample['year'] = sample['year'] - 2016
+        sample['day'] = sample['day'] / 365.0001  # 365 + h, h = 0.0001 to avoid placing day 365 in out of bounds bin
+        sample['year'] = sample['year'] - 2016
         return sample
 
 
@@ -218,10 +218,8 @@ class TileDates(object):
         self.doy_bins = doy_bins
 
     def __call__(self, sample):
-        # sample['day'] = self.repeat(sample['day'], binned=self.doy_bins is not None)
-        # sample['year'] = self.repeat(sample['year'], binned=False)
-        sample['day'] ='day'
-        sample['year'] ='year'
+        sample['day'] = self.repeat(sample['day'], binned=self.doy_bins is not None)
+        sample['year'] = self.repeat(sample['year'], binned=False)
         return sample
     
     def repeat(self, tensor, binned=False):
@@ -243,9 +241,7 @@ class Concat(object):
         self.concat_keys = concat_keys
         
     def __call__(self, sample):
-        sample.pop('day')
-        sample.pop('year')
-        inputs = torch.cat( [sample[key] for key in self.concat_keys[0:3]], dim=-1)
+        inputs = torch.cat([sample[key] for key in self.concat_keys], dim=-1)
         sample["inputs"] = inputs
         sample = {key: sample[key] for key in sample.keys() if key not in self.concat_keys}
         return sample

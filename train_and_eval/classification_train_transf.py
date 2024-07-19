@@ -52,7 +52,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
 
     def train_step(net, sample, loss_fn, optimizer, device):
         optimizer.zero_grad()
-        print(sample['inputs'].shape)
+        print("train_step input shape : ", sample['inputs'].shape)
         outputs = net(sample['inputs'].to(torch.float32).to(device))
         ground_truth = sample['labels'][:, center, center, 0].to(torch.int64).to(device)
         loss = loss_fn['mean'](outputs, ground_truth)
@@ -71,6 +71,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
         with torch.no_grad():
             for step, sample in enumerate(evalloader):
 
+                # exit()
                 if step % 500 == 0:
                     print("Eval step %d of %d" % (step, Neval))
 

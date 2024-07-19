@@ -17,7 +17,6 @@ def get_distr_dataloader(paths_file, root_dir, rank, world_size, transform=None,
     """
     return a distributed dataloader
     """
-    print("%%%%,",paths_file,"**",root_dir,"return_paths",return_paths)
     dataset = SatImDataset(csv_file=paths_file, root_dir=root_dir, transform=transform, return_paths=return_paths)
     sampler = torch.utils.data.distributed.DistributedSampler(dataset, num_replicas=world_size, rank=rank)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers,
@@ -27,7 +26,6 @@ def get_distr_dataloader(paths_file, root_dir, rank, world_size, transform=None,
 
 def get_dataloader(paths_file, root_dir, transform=None, batch_size=32, num_workers=4, shuffle=True,
                    return_paths=False, my_collate=None):
-    print("%%%%,",paths_file,"**",root_dir,"return_paths",return_paths)
     dataset = SatImDataset(csv_file=paths_file, root_dir=root_dir, transform=transform, return_paths=return_paths)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers,
                                              collate_fn=my_collate)
@@ -45,7 +43,6 @@ class SatImDataset(Dataset):
             transform (callable, optional): Optional transform to be applied
                 on a sample.
         """
-
         self.data_paths = pd.read_csv(csv_file, header=None)
         self.root_dir = root_dir
         self.transform = transform
@@ -53,16 +50,14 @@ class SatImDataset(Dataset):
         self.return_paths = return_paths
 
     def __len__(self):
-        print(len(self.data_paths),"*************")
         return len(self.data_paths)
-        # return 0
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
-        # print(self.root_dir, self.data_paths.iloc[idx, 0],"___")
-        img_name = os.path.join(self.root_dir, str(int(self.data_paths.iloc[idx, 0]))+'.pickle')
-        # print(img_name,"++++++")
+
+        img_name = os.path.join(self.root_dir, self.data_paths.iloc[idx, 0])
+
         with open(img_name, 'rb') as handle:
             sample = pickle.load(handle, encoding='latin1')
 

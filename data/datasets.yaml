@@ -1,7 +1,7 @@
 MTLCC:
-    basedir: "/home/vuonghn/research/dataset/satellite/arkansas/dataset_final"
-    paths_train: "/home/vuonghn/research/dataset/satellite/arkansas/a.csv"
-    paths_eval: "/home/vuonghn/research/dataset/satellite/arkansas/a.csv"
+    basedir: "..."
+    paths_train: ".../240pkl/train_paths.csv"
+    paths_eval: ".../240pkl/eval_paths.csv"
 
 T31TFM_1618:
     basedir: "..."
@@ -10,11 +10,11 @@ T31TFM_1618:
 
 # PASTIS24 benchmark -------------------------------------------------------------------------------------------------
 PASTIS24_fold1:
-    PASTIS24_fold1:
-        basedir: ".../PASTIS24"
-        paths_train: ".../fold-paths/folds_1_123_paths.csv"
-        paths_eval: ".../fold-paths/fold_4_paths.csv"
-        paths_test: ".../fold-paths/fold_5_paths.csv"
+    # PASTIS24_fold1:
+    basedir: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/PASTIS24/"
+    paths_train: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/PASTIS24/fold-paths/folds_1_123_paths.csv"
+    paths_eval: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/PASTIS24/fold-paths/fold_4_paths.csv"
+    paths_test: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/PASTIS24/fold-paths/fold_5_paths.csv"
 
 PASTIS24_fold2:
     basedir: ".../PASTIS24"

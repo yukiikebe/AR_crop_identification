@@ -50,7 +50,7 @@ def get_device(device_ids, allow_cpu=False):
         device = torch.device("cuda:%d" % device_ids[0])
     elif allow_cpu:
         device = torch.device("cpu")
-    # else:
-    # device='cuda'
+    else:
+        sys.exit("No allowed device is found")
     return device
 

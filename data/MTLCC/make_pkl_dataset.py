@@ -7,13 +7,6 @@ import random
 import os
 from glob import glob
 import argparse
-from worker_utils import extract_fun
-import multiprocessing
-
-
-
-
-
 
 
 def tfrec2pickle(paths, rootdir):
@@ -59,51 +52,50 @@ def tfrec2pickle(paths, rootdir):
     return np.array(files_saved)
 
 
-def split_data_paths(pkl_paths_df, train_ids_file, eval_ids_file, rootdir):
-    # Define a lambda function to extract the ID from the file path
+def split_data_paths(pkl_paths, train_ids_file, eval_ids_file, rootdir):
     get_id = lambda s: s.split("/")[-1].split(".")[0]
 
-    # Load the evaluation and training IDs into DataFrames
     eval_ids = pd.read_csv(eval_ids_file, header=None)
     train_ids = pd.read_csv(train_ids_file, header=None)
 
-    # Create a new column 'id' by applying 'get_id' to each path in the 'path' column
-    pkl_paths_df['id'] = pkl_paths_df['path'].apply(get_id)
+    pkl_paths[1] = pkl_paths[0].apply(get_id)
 
-    # Filter the DataFrame based on whether the 'id' exists in the train or eval IDs
-    train_paths = pkl_paths_df[pkl_paths_df['id'].isin(train_ids[0].astype(str))]
-    eval_paths = pkl_paths_df[pkl_paths_df['id'].isin(eval_ids[0].astype(str))]
+    train_paths = pkl_paths[pkl_paths[1].isin(train_ids[0].astype(str))][0]
+    eval_paths = pkl_paths[pkl_paths[1].isin(eval_ids[0].astype(str))][0]
 
-    # Save the filtered paths to CSV files
-    train_paths[['path']].to_csv(os.path.join(rootdir, "data_IJGI18/datasets/full/240pkl/train_paths.csv"),
-                                 header=None, index=False)
-    eval_paths[['path']].to_csv(os.path.join(rootdir, "data_IJGI18/datasets/full/240pkl/eval_paths.csv"),
-                                header=None, index=False)
-
+    train_paths.to_csv(os.path.join(rootdir, "data_IJGI18/datasets/full/240pkl/train_paths.csv"),
+                       header=None, index=False)
+    eval_paths.to_csv(os.path.join(rootdir, "data_IJGI18/datasets/full/240pkl/eval_paths.csv"),
+                      header=None, index=False)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Process TFRecords into Pickle files.')
-    parser.add_argument('--rootdir', required=True, help='Data root directory')
-    parser.add_argument('--numworkers', type=int, default=4, help='Number of parallel processes')
-    args = parser.parse_args()
 
-    # Prepare your data paths
-    data_paths = glob(os.path.join(args.rootdir, "data_IJGI18/datasets/full/240/data16/*.tfrecord.gz"))
-    data_paths = ["data_IJGI18/datasets/full/240/data16/" + os.path.basename(path) for path in data_paths]
+    parser = argparse.ArgumentParser(description='gather relative paths for MTLCC tfrecords')
+    parser.add_argument('--rootdir', required=True, help='data root directory')
+    parser.add_argument('--numworkers', type=int, default='4', help='number of parallel processes')
+    opt = parser.parse_args()
 
-    # Assuming extract_fun is adjusted to handle a subset of data_paths and placed in worker_utils.py
-    with multiprocessing.Pool(processes=args.numworkers) as pool:
-        results = pool.starmap(extract_fun, [(chunk.tolist(), args.rootdir) for chunk in np.array_split(data_paths, args.numworkers)])
+    data = glob(os.path.join(opt.rootdir, "data_IJGI18/datasets/full/240/data16/*.tfrecord.gz"))
+    data = pd.DataFrame(["/".join(d.split("/")[-6:]) for d in data])
+    data.to_csv(
+        os.path.join(opt.rootdir, "data_IJGI18/datasets/full/tfrecords240_paths.csv"), header=None, index=False)
 
-    # Concatenate results and prepare for splitting
-    pkl_paths = np.concatenate(results)
-    pkl_paths_df = pd.DataFrame(pkl_paths, columns=['path'])
+    paths = data[0].values.tolist()
+    if not os.path.exists(os.path.join(opt.rootdir, "data_IJGI18/datasets/full/240pkl")):
+        os.makedirs(os.path.join(opt.rootdir, "data_IJGI18/datasets/full/240pkl"))
 
-    # Define paths for train, eval, (and possibly test) ID files
-    train_ids_file = os.path.join(args.rootdir, "data_IJGI18/datasets/full/240/tileids/train_fold0.tileids")
-    eval_ids_file = os.path.join(args.rootdir, "data_IJGI18/datasets/full/240/tileids/eval.tileids")
-    
-    # Split and save paths
-    split_data_paths(pkl_paths_df, train_ids_file, eval_ids_file, args.rootdir)
+    def extract_fun(paths):
+        return tfrec2pickle(paths, opt.rootdir)  # , save_rootdir)
 
+    out = run_pool(paths, extract_fun, opt.numworkers)
+
+    pkl_paths = pd.DataFrame(np.concatenate(out))
+    pkl_paths.to_csv(
+        os.path.join(opt.rootdir, "data_IJGI18/datasets/full/240pkl/data_paths.csv"), header=None, index=False)
+
+    eval_ids_file = os.path.join(opt.rootdir, "data_IJGI18/datasets/full/240/tileids/eval.tileids")
+    test_ids_file = os.path.join(opt.rootdir, "data_IJGI18/datasets/full/240/tileids/test_fold0.tileids")
+    train_ids_file = os.path.join(opt.rootdir, "data_IJGI18/datasets/full/240/tileids/train_fold0.tileids")
+
+    split_data_paths(pkl_paths, train_ids_file, eval_ids_file, opt.rootdir)

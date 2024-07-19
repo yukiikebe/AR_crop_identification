@@ -393,12 +393,9 @@ class TSViT(nn.Module):
         assert self.pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
         num_patches = self.num_patches_1d ** 2
         patch_dim = (model_config['num_channels'] - 1) * self.patch_size ** 2  # -1 is set to exclude time feature
-        print(patch_dim,"******")
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b t c (h p1) (w p2) -> (b h w) t (p1 p2 c)', p1=self.patch_size, p2=self.patch_size),
-            )
-        print(patch_dim, self.dim,"********") #52 128 ********/>
-        self.f_m= nn.Linear(48, self.dim)
+            nn.Linear(patch_dim, self.dim),)
         self.to_temporal_embedding_input = nn.Linear(366, self.dim)
         self.temporal_token = nn.Parameter(torch.randn(1, self.num_classes, self.dim))
         self.temporal_transformer = Transformer(self.dim, self.temporal_depth, self.heads, self.dim_head,
@@ -422,17 +419,11 @@ class TSViT(nn.Module):
 
         xt = xt.reshape(-1, 366)
         temporal_pos_embedding = self.to_temporal_embedding_input(xt).reshape(B, T, self.dim)
-        print(x.shape,"^^^^^^^^^^^1")
         x = self.to_patch_embedding(x)
-        print(x.shape,"^^^^^^^^^^^2")
-        x= self.f_m(x)
-        print(x.shape,"^^^^^^^^^^^3")
-        
         x = x.reshape(B, -1, T, self.dim)
         x += temporal_pos_embedding.unsqueeze(1)
         x = x.reshape(-1, T, self.dim)
         cls_temporal_tokens = repeat(self.temporal_token, '() N d -> b N d', b=B * self.num_patches_1d ** 2)
-        print(cls_temporal_tokens.shape,"######", x.shape,"&&&&&&&&")
         x = torch.cat((cls_temporal_tokens, x), dim=1)
         x = self.temporal_transformer(x)
         x = x[:, :self.num_classes]
