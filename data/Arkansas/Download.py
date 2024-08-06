@@ -14,10 +14,10 @@ roig = [
 ]
 start_day = '2023-01-01'
 end_day = '2023-12-31'
-save_dir = '/home/vuonghn/research/dataset/satellite/arkansas/satellite_images/'
+save_dir = '/home/vuonghn/research/dataset/satellite/arkansas/satellite_images/2023/'
 
 def download_dataset(roig, start_day, end_day,save_dir):
-    print("Downloading Sentinel-2 Image Collection...")
+    print("Download.py at ", roig, start_day, end_day, save_dir)
     roi = ee.Geometry.Polygon(roig)
     collection = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED") \
         .filterDate(start_day, end_day) \

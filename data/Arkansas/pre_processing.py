@@ -13,7 +13,9 @@ from datetime import datetime
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from sklearn.model_selection import train_test_split
 
+import pandas as pd
 
 
 SELECTED_BANDS = {
@@ -119,7 +121,6 @@ def stack_bands(satellite_image)->dict:
         satellite_image['20m']['B12'],
         satellite_image['SCL']['SCL'],
     ])
-
     return stacked_image
 
 
@@ -210,20 +211,45 @@ def read_series_satellite_and_cdl(satellite_image_dir:str, cdl_image_dir:str)->d
     stacked_images = np.stack(stacked_images, axis=0)
     tiled_images, patch_ids = create_splits(stacked_images, (N, N))
     return tiled_images, patch_ids, doys
+def preprocess_AR(satellite_dir, cdl_dir, output_dir):
 
-if __name__ == "__main__":
-
-    satellite_image_dir = "/home/khoavo/Desktop/workplace/satelite/raw_arkansas/"
-    cdl_image_dir = "/home/khoavo/Desktop/workplace/satelite/cdl_arkansas"
-    tiled_satellite_series, patch_ids, doys = read_series_satellite_and_cdl(satellite_image_dir,cdl_image_dir)
+    tiled_satellite_series, patch_ids, doys = read_series_satellite_and_cdl(satellite_dir,cdl_dir)
     for series, patch_idx in zip(tiled_satellite_series, patch_ids):
         pkl_data = {
             'img': series,
             'doy': doys,
             'labels': np.zeros((1, 24, 24), dtype=np.uint8),
         }
-        with open(f'/home/khoavo/Desktop/workplace/satelite/arkansas/{patch_idx[0]}_{patch_idx[1]}.pickle', 'wb') as f:
+        with open(f'{output_dir}/{patch_idx[0]}_{patch_idx[1]}.pickle', 'wb') as f:
             pkl.dump(pkl_data, f)
-    # date = "2023-01-03"
-    # statellite_image = read_satellite_image(data_dir,date)
-    # print(statellite_image.keys())
+
+def split_data(pickle_dir, split_dir):
+    files = os.listdir(pickle_dir)
+    latest_folder = pickle_dir.split('/')[-1]
+    print(latest_folder)
+    pickle_files = [os.path.join(latest_folder,f) for f in os.listdir(pickle_dir) if f.endswith('.pickle')]
+    train_data, temp_data = train_test_split(pickle_files, test_size=0.2, random_state=42)
+    val_data, test_data = train_test_split(temp_data, test_size=0.5, random_state=42)
+
+    # Convert lists to DataFrames
+    train_df = pd.DataFrame(train_data, columns=['file_path'])
+    val_df = pd.DataFrame(val_data, columns=['file_path'])
+    test_df = pd.DataFrame(test_data, columns=['file_path'])
+
+    # Save DataFrames to CSV files
+    train_df.to_csv(os.path.join(split_dir, 'train_data.csv'), index=False, header=False)
+    val_df.to_csv(os.path.join(split_dir, 'val_data.csv'), index=False, header=False)
+    test_df.to_csv(os.path.join(split_dir, 'test_data.csv'), index=False, header=False)
+
+if __name__ == "__main__":
+
+    satellite_image_dir = "/home/vuonghn/research/dataset/satellite/arkansas/satellite_images/2023/"
+    cdl_image_dir = "/home/vuonghn/research/dataset/satellite/arkansas/org_maral/cdl/"
+    pickle_dir = "/home/vuonghn/research/dataset/satellite/arkansas/arkansas24/pickle24x24"
+    split_dir = "/home/vuonghn/research/dataset/satellite/arkansas/arkansas24/fold-paths/"
+    # pickle_dir = "/home/vuonghn/research/dataset/satellite/arkansas/preprocessed_data/pickle24x24"
+    # preprocess_AR(satellite_image_dir, cdl_image_dir, pickle_dir)
+    split_data(pickle_dir, split_dir)
+    print("Done pre-processing Arkansas")
+
+

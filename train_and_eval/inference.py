@@ -20,6 +20,8 @@ import matplotlib
 from matplotlib.colors import ListedColormap
 
 
+# device_ids = [0]
+
 CLASS_NAMES = [
     'Background', 'Meadow', 'Soft winter wheat', 'Corn', 'Winter barley', 'Winter rapeseed',
     'Spring barley', 'Sunflower', 'Grapevine', 'Beet', 'Winter triticale', 'Winter durum wheat',
@@ -75,12 +77,14 @@ def visualize_rgb(argmax_array, num_classes):
     return rgb_output, color_codes
 
 
-def inference(net, dataloader):
+def inference(net, dataloader,device,output_vis):
     net.eval()
     all_outputs = np.zeros((1920, 2856), dtype=np.uint8)
     with torch.no_grad():
         for sample, patch_ids in dataloader:
             inputs = sample['inputs'].to(device)
+            # print("inputs shape: ", inputs.shape)
+            # exit()
             labels = sample['labels'].to(device)
             logits = net(inputs)
             logits = logits.permute(0, 2, 3, 1)
@@ -94,7 +98,7 @@ def inference(net, dataloader):
             # labels_np = labels.cpu().numpy() if labels.is_cuda else labels.numpy()
             for i in range(outputs.shape[0]):
                 h_idx, w_idx = [int(s) for s in patch_ids[i].split('_')]
-                print(h_idx, w_idx)
+                # print(h_idx, w_idx)
                 all_outputs[h_idx:h_idx+24, w_idx:w_idx+24] = outputs[i]
     
     all_outputs = all_outputs[6:-6, 7:-7]
@@ -127,31 +131,27 @@ def inference(net, dataloader):
     plt.show()
 
     # Save the combined image with the legend to a file
-    fig.savefig('visualized_rgb_with_legend.png')
+    fig.savefig(output_vis)
     print(f"Image with legend saved as visualized_rgb_with_legend.png")
 
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-    parser.add_argument('--config', help='configuration (.yaml) file to use')
-    parser.add_argument('--device', default='0', type=str,
-                         help='gpu ids to use')
-
-    args = parser.parse_args()
-    config_file = args.config
-    print(args.device)
-    device_ids = [int(d) for d in args.device.split(',')]
-
-    device = get_device(device_ids, allow_cpu=False)
-
+def inference_AR(config_file,input_dir, output_vis):
+    print("Inference Arkansas")
+    
     config = read_yaml(config_file)
-    config['local_device_ids'] = device_ids
+    
 
+    device_ids = config['DEVICE']['device_id']
+    device = get_device(device_ids, allow_cpu=False)
+    config['local_device_ids'] = device_ids
     model_config = config['MODEL']
     eval_config  = config['DATASETS']['eval']
     eval_config['bidir_input'] = model_config['architecture'] == "ConvBiRNN"
-    eval_config['base_dir'] = '/home/khoavo/Desktop/workplace/satelite/arkansas'
+    eval_config['base_dir'] = input_dir
     eval_config['paths'] = list(glob(os.path.join(eval_config['base_dir'], '*.pickle')))
+
+
+    # print("eval_config['paths'] ",eval_config['paths'])
+    # exit()
 
     eval_dataloader = get_arkansas_dataloader(
             paths=eval_config['paths'], root_dir=eval_config['base_dir'],
@@ -163,5 +163,13 @@ if __name__ == '__main__':
     checkpoint = config['CHECKPOINT']["load_from_checkpoint"]
     if checkpoint:
         load_from_checkpoint(net, checkpoint, partial_restore=False)
+    inference(net, eval_dataloader,device,output_vis)
 
-    inference(net, eval_dataloader)
+
+if __name__ == '__main__':
+    config_file = 'configs/Arkansas/TSViT_inference.yaml'
+    input_dir = '/home/vuonghn/research/dataset/satellite/arkansas/preprocessed_data/preprocessed_data_aKhoa'
+    output_vis = './output/visualized_rgb_with_legend.png'
+    inference_AR(config_file, input_dir, output_vis)
+
+

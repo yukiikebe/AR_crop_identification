@@ -44,10 +44,10 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                 # sample_inputs = sample['inputs'].to(device) # torch.Size([24, 60, 24, 24, 11])
                 # print("evaluate: sample_inputs ",sample_inputs.shape)
                 logits = net(sample['inputs'].to(device))
-                print("evaluate: logits ",logits.shape)
+                # print("evaluate: logits ",logits.shape)
                 logits = logits.permute(0, 2, 3, 1)
                 _, predicted = torch.max(logits.data, -1) # torch.Size([24, 24, 24])
-                print("evaluate: predicted ",predicted.shape)
+                # print("evaluate: predicted ",predicted.shape)
                 ground_truth = loss_input_fn(sample, device)
                 # print("evaluate: ground_truth ",ground_truth.shape)
                 loss = loss_fn['all'](logits, ground_truth)
@@ -217,3 +217,6 @@ if __name__ == "__main__":
     net = get_model(config, device)
 
     train_and_evaluate(net, dataloaders, config, device)
+
+
+# python train_and_eval/segmentation_training_transf.py --config configs/PASTIS24/TSViT_fold1.yaml
