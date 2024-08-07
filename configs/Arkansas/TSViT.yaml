@@ -4,7 +4,7 @@ MODEL:
   max_seq_len: 60
   num_channels: 11
   num_features: 16
-  num_classes: 27
+  num_classes:  19
   ignore_background: False
   dropout: 0.
   patch_size: 2
@@ -57,7 +57,7 @@ SOLVER:
   weight_decay: 0.000
 
 CHECKPOINT:
-  load_from_checkpoint: #'./PASTIS24_checkpoints/TSViT_fold1/best.pth'
+  load_from_checkpoint: './PASTIS24_checkpoints/TSViT_fold1/best.pth'
   partial_restore: False
   save_path: 'models/saved_models/AR24/'
   train_metrics_steps: 250

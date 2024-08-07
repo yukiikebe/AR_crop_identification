@@ -29,6 +29,14 @@ CLASS_NAMES = [
     'Mixed cereal', 'Sorghum', 'Void label',
 ]
 
+CLASS_NAMES = ['Corn', 'Cotton', 'Rice', 'Sorghum', 'Soybeans', 'Winter Wheat', 
+               'Dbl Crop WinWht/Soybeans', 'Other Hay/Non Alfalfa', 'Sod/Grass Seed', 
+               'Fallow/Idle Cropland', 'Grapes', 'Pecans', 'Open Water', 'Developed/Open Space', 
+               'Developed/Low Intensity', 'Developed/Med Intensity', 'Developed/High Intensity', 
+               'Barren', 'Deciduous Forest', 'Evergreen Forest', 'Mixed Forest', 'Shrubland', 'Grassland/Pasture', 
+               'Woody Wetlands', 'Herbaceous Wetlands', 'Dbl Crop Corn/Soybeans', 'other']
+
+
 class SingleSampleDataset(Dataset):
     """Dataset for a single satellite image sample."""
 
@@ -163,6 +171,7 @@ def inference_AR(config_file,input_dir, output_vis):
     checkpoint = config['CHECKPOINT']["load_from_checkpoint"]
     if checkpoint:
         load_from_checkpoint(net, checkpoint, partial_restore=False)
+        
     inference(net, eval_dataloader,device,output_vis)
 
 
