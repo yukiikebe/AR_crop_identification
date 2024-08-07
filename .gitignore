@@ -2,4 +2,6 @@ PASTIS24_checkpoints/
 datasets/
 output/
 satellite_images/
-__pycache__/models/saved_models/
+__pycache__/
+models/saved_models/
+*.pyc

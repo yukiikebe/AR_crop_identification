@@ -1,12 +1,13 @@
 from __future__ import print_function, division
 import os
 import torch
-import numpy as np
+import pandas as pd
 from torch.utils.data import Dataset
 import torch.utils.data
 import pickle
 import warnings
 warnings.filterwarnings("ignore")
+import numpy as np
 
 
 
@@ -22,9 +23,9 @@ def get_distr_dataloader(paths_file, root_dir, rank, world_size, transform=None,
     return dataloader
 
 
-def get_dataloader(paths, root_dir, transform=None, batch_size=32, num_workers=4, shuffle=True,
+def get_dataloader(paths_file, root_dir, transform=None, batch_size=32, num_workers=4, shuffle=True,
                    return_paths=False, my_collate=None):
-    dataset = SatImDataset(data_paths=paths, root_dir=root_dir, transform=transform, return_paths=return_paths)
+    dataset = SatImDataset(csv_file=paths_file, root_dir=root_dir, transform=transform, return_paths=return_paths)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers,
                                              collate_fn=my_collate)
     return dataloader
@@ -33,7 +34,7 @@ def get_dataloader(paths, root_dir, transform=None, batch_size=32, num_workers=4
 class SatImDataset(Dataset):
     """Satellite Images dataset."""
 
-    def __init__(self, data_paths, root_dir, transform=None, multilabel=False, return_paths=False):
+    def __init__(self, csv_file, root_dir, transform=None, multilabel=False, return_paths=False):
         """
         Args:
             csv_file (string): Path to the csv file with annotations.
@@ -41,7 +42,10 @@ class SatImDataset(Dataset):
             transform (callable, optional): Optional transform to be applied
                 on a sample.
         """
-        self.data_paths = data_paths
+        if type(csv_file) == str:
+            self.data_paths = pd.read_csv(csv_file, header=None)
+        elif type(csv_file) in [list, tuple]:
+            self.data_paths = pd.concat([pd.read_csv(csv_file_, header=None) for csv_file_ in csv_file], axis=0).reset_index(drop=True)
         self.root_dir = root_dir
         self.transform = transform
         self.multilabel = multilabel
@@ -54,16 +58,18 @@ class SatImDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        img_name = os.path.join(self.root_dir, self.data_paths[idx])
-        # print("img_name ", img_name)
-        # exit()
+        img_name = os.path.join(self.root_dir, self.data_paths.iloc[idx, 0])
+
 
         with open(img_name, 'rb') as handle:
             sample = pickle.load(handle, encoding='latin1') # (['img', 'labels', 'doy'])
+
             if sample['img'].shape[-1] == 11:
                 sample['img'] = sample['img'][..., :-1]
                 sample['img'] = np.transpose(sample['img'].astype(np.float32), (0, 3, 1, 2))
+        # sample["labels"] = np.zeros((1, 24, 24), dtype=np.uint8)#sample["labels"].astype(np.int64)
         # print("before transform" , sample['img'].shape) #torch.Size([60, 24, 24, 11])
+        # print("before transform labels ", np.unique(sample["labels"]))
         if self.transform:
             sample = self.transform(sample)  #dict_keys(['inputs', 'labels', 'seq_lengths', 'unk_masks'])
         # print("sample ", sample.keys())
@@ -75,10 +81,12 @@ class SatImDataset(Dataset):
 
         # before transform (43, 10, 24, 24)
         # aafter transform torch.Size([60, 24, 24, 11])
-        
+        # print("after transform labels ", np.unique(sample["labels"]), "\n")
         if self.return_paths:
-            return sample, img_name.split('/')[-1].split('.')[0]
+            return sample, img_name
         
+        # print("sample ", sample.keys())
+        # exit()
         return sample
 
 #     def read(self, idx, abs=False):

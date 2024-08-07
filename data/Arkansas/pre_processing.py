@@ -144,7 +144,7 @@ def read_satellite_image(data_dir,date)->dict:
                 #print(resolution, band, data.dtype, data.shape, data.min(), data.max())
                 if band == 'SCL':
                     occlusion_ratio = np.sum(data > 7) / float(data.size)
-                    print(np.around(occlusion_ratio, 4))
+                    # print(np.around(occlusion_ratio, 4))
                     if  occlusion_ratio > 0.1:
                         return None
                     #scl_mapping(data, data_dir, date)
@@ -176,6 +176,7 @@ def read_cdl_image(data_dir,date):
     with rasterio.open(file_path) as src:
         cdl_image = src.read(1)
         num_bands = src.count
+    # print("cdl_image ",np.unique(cdl_image))
     return cdl_image
 
 
@@ -198,27 +199,38 @@ def read_series_satellite_and_cdl(satellite_image_dir:str, cdl_image_dir:str)->d
     # satellite_images = {}
     stacked_images, doys = [], []
     for date in sorted_dates:
-        print(f"Reading image at date: {date}")
         satellite_images = read_satellite_image(satellite_image_dir,date)
         if satellite_images is None:
             continue
-        cdl_image = read_cdl_image(cdl_image_dir, "2023-03-02")
+        cdl_image = read_cdl_image(cdl_image_dir, "27classes")
+        cdl_image_expanded = np.expand_dims(cdl_image, axis=-1)
+
         stacked_image = stack_bands(satellite_images)
+        # stacked_image = np.concatenate([stacked_image, cdl_image_expanded], axis=-1)
+        # print("stacked_image ", stacked_image.shape)
+        # print("cdl_image ", cdl_image.shape)
         stacked_images.append(stacked_image)
         doys.append(datetime.strptime(date, '%Y-%m-%d').timetuple().tm_yday)
 
     N = 24
     stacked_images = np.stack(stacked_images, axis=0)
+    # print("stacked_images ", stacked_images.shape)
+    # exit()
     tiled_images, patch_ids = create_splits(stacked_images, (N, N))
     return tiled_images, patch_ids, doys
 def preprocess_AR(satellite_dir, cdl_dir, output_dir):
 
     tiled_satellite_series, patch_ids, doys = read_series_satellite_and_cdl(satellite_dir,cdl_dir)
+
     for series, patch_idx in zip(tiled_satellite_series, patch_ids):
+        # print("series ", series.shape)
+        series_image = series[:,:,:,:-1]
+        labels = series[:1,:,:, -1]
+
         pkl_data = {
             'img': series,
             'doy': doys,
-            'labels': np.zeros((1, 24, 24), dtype=np.uint8),
+            'labels': #np.array(labels, dtype=np.uint8),
         }
         with open(f'{output_dir}/{patch_idx[0]}_{patch_idx[1]}.pickle', 'wb') as f:
             pkl.dump(pkl_data, f)
@@ -247,9 +259,14 @@ if __name__ == "__main__":
     cdl_image_dir = "/home/vuonghn/research/dataset/satellite/arkansas/org_maral/cdl/"
     pickle_dir = "/home/vuonghn/research/dataset/satellite/arkansas/arkansas24/pickle24x24"
     split_dir = "/home/vuonghn/research/dataset/satellite/arkansas/arkansas24/fold-paths/"
-    # pickle_dir = "/home/vuonghn/research/dataset/satellite/arkansas/preprocessed_data/pickle24x24"
-    # preprocess_AR(satellite_image_dir, cdl_image_dir, pickle_dir)
-    split_data(pickle_dir, split_dir)
+
+    if not os.path.exists(pickle_dir):
+        os.makedirs(pickle_dir)
+    
+    if not os.path.exists(split_dir):
+        os.makedirs(split_dir)
+    preprocess_AR(satellite_image_dir, cdl_image_dir, pickle_dir)
+    # split_data(pickle_dir, split_dir)
     print("Done pre-processing Arkansas")
 
 

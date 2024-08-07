@@ -8,6 +8,12 @@ T31TFM_1618:
     paths_train: ".../train_paths.csv"
     paths_eval: ".../eval_paths.csv"
 
+AR24:
+    basedir: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24"
+    paths_train: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24/fold-paths/train_data.csv"
+    paths_eval: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24/fold-paths/val_data.csv"
+    paths_test: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24/fold-paths/test_data.csv"
+
 # PASTIS24 benchmark -------------------------------------------------------------------------------------------------
 PASTIS24_fold1:
     # PASTIS24_fold1:

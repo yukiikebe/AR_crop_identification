@@ -4,7 +4,7 @@ MODEL:
   max_seq_len: 60
   num_channels: 11
   num_features: 16
-  num_classes: 19
+  num_classes: 27
   ignore_background: False
   dropout: 0.
   patch_size: 2
@@ -19,23 +19,31 @@ MODEL:
 
 DATASETS:
   train:
-    dataset: "Arkansas"
+    dataset: "AR24"
     label_map:
     max_seq_len: 60
-    batch_size: 16
+    batch_size: 32
     extra_data:
     num_workers: 4
 
   eval:
-    dataset: "Arkansas"
+    dataset: "AR24"
     label_map:
     max_seq_len: 60
-    batch_size: 24
+    batch_size: 32
+    extra_data:
+    num_workers: 4
+
+  test:
+    dataset: "AR24"
+    label_map:
+    max_seq_len: 60
+    batch_size: 32
     extra_data:
     num_workers: 4
 
 SOLVER:
-  num_epochs: 100
+  num_epochs: 200
   num_warmup_epochs: 10
   steps: (0, 80000)
   loss_function:  masked_cross_entropy
@@ -49,9 +57,9 @@ SOLVER:
   weight_decay: 0.000
 
 CHECKPOINT:
-  load_from_checkpoint: './PASTIS24_checkpoints/TSViT_fold1/best.pth'
+  load_from_checkpoint: #'./PASTIS24_checkpoints/TSViT_fold1/best.pth'
   partial_restore: False
-  save_path: 'models/saved_models/PASTIS24/TSViT_fold1'
+  save_path: 'models/saved_models/AR24/'
   train_metrics_steps: 250
   eval_steps: 10 #2000
   save_steps: 20000000000

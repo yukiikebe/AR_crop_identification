@@ -41,8 +41,12 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
         net.eval()
         with torch.no_grad():
             for step, sample in enumerate(evalloader):
+                # print("evaluate: sample ",sample.keys())
+                
                 # sample_inputs = sample['inputs'].to(device) # torch.Size([24, 60, 24, 24, 11])
-                # print("evaluate: sample_inputs ",sample_inputs.shape)
+                # print("evaluate: sample ",len(sample))
+                # print("evaluate: sample inputs ",sample[0][])
+                # exit()
                 logits = net(sample['inputs'].to(device))
                 # print("evaluate: logits ",logits.shape)
                 logits = logits.permute(0, 2, 3, 1)
@@ -203,6 +207,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     config_file = args.config
+
     print(args.device)
     device_ids = [int(d) for d in args.device.split(',')]
     lin_cls = args.lin
@@ -220,3 +225,5 @@ if __name__ == "__main__":
 
 
 # python train_and_eval/segmentation_training_transf.py --config configs/PASTIS24/TSViT_fold1.yaml
+
+# python train_and_eval/segmentation_training_transf.py --config configs/Arkansas/TSViT.yaml

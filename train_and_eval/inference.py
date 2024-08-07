@@ -8,7 +8,7 @@ from glob import glob
 from models import get_model
 from utils.config_files_utils import read_yaml
 from utils.torch_utils import get_device, load_from_checkpoint
-from data.Arkansas.dataloader import get_dataloader as get_arkansas_dataloader
+from data.Arkansas.dataloader_inference import get_dataloader as get_arkansas_dataloader
 
 from data.PASTIS24.data_transforms import PASTIS_segmentation_transform
 import pickle
@@ -167,7 +167,7 @@ def inference_AR(config_file,input_dir, output_vis):
 
 
 if __name__ == '__main__':
-    config_file = 'configs/Arkansas/TSViT_inference.yaml'
+    config_file = 'configs/Arkansas/TSViT.yaml'
     input_dir = '/home/vuonghn/research/dataset/satellite/arkansas/preprocessed_data/preprocessed_data_aKhoa'
     output_vis = './output/visualized_rgb_with_legend.png'
     inference_AR(config_file, input_dir, output_vis)
