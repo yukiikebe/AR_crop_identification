@@ -12,7 +12,7 @@ from folium.plugins import Draw
 import shutil 
 from data.Arkansas.Download import download_dataset
 from data.Arkansas.pre_processing import preprocess_AR
-from Agriculture.DeepSatModels.train_and_eval.inference_AR24 import inference_AR
+from train_and_eval.inference_AR24 import inference_AR
 ee.Authenticate()
 ee.Initialize(project='ee-vvuonghn')
 
@@ -21,8 +21,9 @@ MAPBOX_TOKEN = "pk.eyJ1IjoidnVvbmdoIiwiYSI6ImNseWRobHVtZTA0a2EyaW9wc2loM2cxOWIif
 config = {"save_satellite_dir": '/home/vuonghn/research/dataset/satellite/arkansas/satellite_images/2023/',
           "cdl_dir": "/home/vuonghn/research/dataset/satellite/arkansas/org_maral/cdl/",
           "processed_dir": "/home/vuonghn/research/dataset/satellite/arkansas/preprocessed_data/preprocessed_demo",
-          "output_vis": 'output/visualized_rgb_with_legend.png',
-          "model_config": 'configs/Arkansas/TSViT_inference.yaml'}
+          "output_vis": './output/',
+          "model_config": 'configs/Arkansas/TSViT_AR24.yaml',
+          "ground_truth": '/home/vuonghn/research/dataset/satellite/arkansas/org_maral/cdl/rgb_27classes_cdl.tif'}
 
 def get_map():
     st.markdown("#### Selection the ROI")
@@ -126,7 +127,7 @@ def get_satellite_image(vis_day, folder_image):
     closest_date = min(date_objects, key=lambda date: abs(date - vis_day))
 
 def app():
-
+    # inference_AR(config["model_config"],config["processed_dir"], config["output_vis"], config["ground_truth"])
     st.title('Demo for Satellite Project for Arkansas')
     map_data = get_map()
     start_date, end_date,vis_day = get_start_end_date()
@@ -138,20 +139,22 @@ def app():
     roig = get_roi(map_data)
     if st.button("Download"):
         with st.spinner('Wait for downloading satellite image from '+str(start_date)+' to '+str(end_date)):
-            download_dataset(roig, start_date, end_date, config["save_satellite_dir"])
+            # download_dataset(roig, start_date, end_date, config["save_satellite_dir"])
+            pass
         st.success('Completed the dataset download!'+str(start_date)+' to '+str(end_date))
 
         # get_satellite_image(vis_day, config["save_satellite_dir"])
 
         with st.spinner('Wait for preprocessing satellite image from '+str(start_date)+' to '+str(end_date)):
-            preprocess_AR(config["save_satellite_dir"], config["cdl_dir"], config["processed_dir"])
+            # preprocess_AR(config["save_satellite_dir"], config["cdl_dir"], config["processed_dir"])
+            pass
         st.success('Completed the dataset preprocessing!'+str(start_date)+' to '+str(end_date))
 
         with st.spinner('Wait for inference satellite image from '+str(start_date)+' to '+str(end_date)):
-            inference_AR(config["model_config"],config["processed_dir"], config["output_vis"])
+            inference_AR(config["model_config"],config["processed_dir"], config["output_vis"], config["ground_truth"])
         st.success('Completed the dataset inference!'+str(start_date)+' to '+str(end_date))
 
-        st.image(config["output_vis"], caption='Crop type segmentaion')
+        st.image(os.path.join(config["output_vis"],"visualized_rgb_with_legend-TSViT_AR24.png"), caption='Crop type segmentaion')
 
 
 

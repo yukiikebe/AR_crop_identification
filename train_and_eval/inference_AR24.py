@@ -61,7 +61,7 @@ def visualize_rgb(argmax_array, num_classes):
     color_codes = {i: tuple(color_map[i]) for i in range(num_classes)}
     return rgb_output, color_codes
 
-def visualize_inference_results(output):
+def visualize_inference_results(output,output_vis):
     # Get unique classes present in the image
     num_classes = len(CLASS_NAMES)
     rgb_image, color_codes = visualize_rgb(output, num_classes)
@@ -163,16 +163,17 @@ def inference(net, dataloader,device,output_vis):
                 h_idx, w_idx = [int(s) for s in patch_ids[i].split('_')]
                 # print(h_idx, w_idx)
                 all_outputs[h_idx:h_idx+24, w_idx:w_idx+24] = outputs[i]
-    if np.any(all_outputs == 19):
-        print("Value 19 is present in all_outputs")
-    else:
-        print("Value 19 is not present in all_outputs") # this case
+    # if np.any(all_outputs == 19):
+    #     print("Value 19 is present in all_outputs")
+    # else:
+    #     print("Value 19 is not present in all_outputs") # this case
     all_outputs = all_outputs[6:-6, 7:-7]
 
     return all_outputs
 def inference_AR(config_file,input_dir, output_vis, ground_truth_path=None):
-    print("Inference Arkansas")
+    # print("Inference Arkansas input ", config_file,input_dir, output_vis, ground_truth_path)
     
+    # exit()
     config = read_yaml(config_file)
     device_ids = config['DEVICE']['device_id']
     device = get_device(device_ids, allow_cpu=False)
@@ -199,7 +200,7 @@ def inference_AR(config_file,input_dir, output_vis, ground_truth_path=None):
         load_from_checkpoint(net, checkpoint, partial_restore=False)
         
     crop_types_inference = inference(net, eval_dataloader,device,output_vis)
-    visualize_inference_results(crop_types_inference)
+    visualize_inference_results(crop_types_inference,output_vis)
 
     if ground_truth_path:
         print("Visualizing compare with ground truth")
