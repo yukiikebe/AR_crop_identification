@@ -19,13 +19,18 @@ MODEL:
 
 DATASETS:
   train:
+    # dataset: "AR24"
+    # label_map:
+    # max_seq_len: 60
+    # batch_size: 32
+    # extra_data:
+    # num_workers: 4
     dataset: "AR24"
     label_map:
     max_seq_len: 60
     batch_size: 32
     extra_data:
     num_workers: 4
-
   eval:
     dataset: "AR24"
     label_map:
@@ -57,9 +62,9 @@ SOLVER:
   weight_decay: 0.000
 
 CHECKPOINT:
-  load_from_checkpoint: #'./PASTIS24_checkpoints/TSViT_fold1/best.pth'
+  load_from_checkpoint: './models/saved_models/AR24/best.pth'
   partial_restore: False
-  save_path: 'models/saved_models/AR24/'
+  save_path: 'models/saved_models/AR24_debug/'
   train_metrics_steps: 250
   eval_steps: 10 #2000
   save_steps: 20000000000

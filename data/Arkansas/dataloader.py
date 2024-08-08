@@ -67,16 +67,30 @@ class SatImDataset(Dataset):
             if sample['img'].shape[-1] == 11:
                 sample['img'] = sample['img'][..., :-1]
                 sample['img'] = np.transpose(sample['img'].astype(np.float32), (0, 3, 1, 2))
-        # sample["labels"] = np.zeros((1, 24, 24), dtype=np.uint8)#sample["labels"].astype(np.int64)
-        # print("before transform" , sample['img'].shape) #torch.Size([60, 24, 24, 11])
-        # print("before transform labels ", np.unique(sample["labels"]))
+        #         img_temp = sample['img']
+        #         doy_temp = sample['doy']
+        # sample["labels"] = np.full((1, 24, 24), 19).astype(np.uint8)
+
+        # # sample["labels"] = np.zeros((1, 24, 24), dtype=np.uint8)#sample["labels"].astype(np.int64)
+        # # print("before transform" , sample['img'].shape) #torch.Size([60, 24, 24, 11])
+        # # print("before transform labels ", np.unique(sample["labels"]))
+        # for i in range(27):
+        #     sample["img"] = img_temp
+        #     sample["doy"] = doy_temp
+        #     sample["labels"] = np.full((1, 24, 24), i).astype(np.uint8)
+        #     print("before transform labels ", np.unique(sample["labels"]))
+        #     if self.transform:
+        #         sample = self.transform(sample)  #dict_keys(['inputs', 'labels', 'seq_lengths', 'unk_masks'])
+        #         print("after transform labels ", np.unique(sample["labels"]), "\n\n\n")
+        # exit()
+
         if self.transform:
             sample = self.transform(sample)  #dict_keys(['inputs', 'labels', 'seq_lengths', 'unk_masks'])
         # print("sample ", sample.keys())
         # print("after transform" , sample['inputs'].shape) #torch.Size([60, 24, 24, 11])
         # print(img_name , sample['inputs'].shape) #torch.Size([60, 24, 24, 11])
         # exit()
-
+        
         # print("self.return_paths ", self.return_paths)
 
         # before transform (43, 10, 24, 24)

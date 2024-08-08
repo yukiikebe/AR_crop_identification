@@ -19,19 +19,16 @@ from metrics.loss_functions import get_loss
 from utils.summaries import write_mean_summaries, write_class_summaries
 from data import get_loss_data_input
 
+CLASS_NAMES = ['Corn', 'Cotton', 'Rice', 'Sorghum', 'Soybeans', 'Winter Wheat', 
+               'Dbl Crop WinWht/Soybeans', 'Other Hay/Non Alfalfa', 'Sod/Grass Seed', 
+               'Fallow/Idle Cropland', 'Grapes', 'Pecans', 'Open Water', 'Developed/Open Space', 
+               'Developed/Low Intensity', 'Developed/Med Intensity', 'Developed/High Intensity', 
+               'Barren', 'Deciduous Forest', 'Evergreen Forest', 'Mixed Forest', 'Shrubland', 'Grassland/Pasture', 
+               'Woody Wetlands', 'Herbaceous Wetlands', 'Dbl Crop Corn/Soybeans', 'other']
 
-def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
+def evaluate_model(net, dataloaders, config, device, lin_cls=False):
 
-    def train_step(net, sample, loss_fn, optimizer, device, loss_input_fn):
-        optimizer.zero_grad()
-        # print(sample['inputs'].shape)
-        outputs = net(sample['inputs'].to(device))
-        outputs = outputs.permute(0, 2, 3, 1)
-        ground_truth = loss_input_fn(sample, device)
-        loss = loss_fn['mean'](outputs, ground_truth)
-        loss.backward()
-        optimizer.step()
-        return outputs, ground_truth, loss
+
   
     def evaluate(net, evalloader, loss_fn, config):
         num_classes = config['MODEL']['num_classes']
@@ -52,6 +49,19 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                 logits = logits.permute(0, 2, 3, 1)
                 _, predicted = torch.max(logits.data, -1) # torch.Size([24, 24, 24])
                 # print("evaluate: predicted ",predicted.shape)
+                # predicted[predicted == 20] = 19
+
+                # if torch.any(sample["labels"] == 19):
+                #     print("Value 19 is present in labels")
+                #     # exit()
+                # else:
+                #     print("Value 19 is not present in labels") # this case
+
+                # if torch.any(predicted == 19):
+                #     print("Value 19 is present in all_outputs")
+                #     exit()
+                # else:
+                #     print("Value 19 is not present in all_outputs") # this case
                 ground_truth = loss_input_fn(sample, device)
                 # print("evaluate: ground_truth ",ground_truth.shape)
                 loss = loss_fn['all'](logits, ground_truth)
@@ -84,13 +94,13 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
         un_labels, class_loss = get_per_class_loss(losses, target_classes, unk_masks=None)
 
         print(
-            "-----------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
         print("Mean (micro) Evaluation metrics (micro/macro), loss: %.7f, iou: %.4f/%.4f, accuracy: %.4f/%.4f, "
-              "precision: %.4f/%.4f, recall: %.4f/%.4f, F1: %.4f/%.4f, unique pred labels: %s" %
+              "precision: %.4f/%.4f, recall: %.4f/%.4f, F1: %.4f/%.4f,\nunique pred labels: %s" %
               (losses.mean(), micro_IOU, macro_IOU, micro_acc, macro_acc, micro_precision, macro_precision,
                micro_recall, macro_recall, micro_F1, macro_F1, np.unique(predicted_classes)))
         print(
-            "-----------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
         return (un_labels,
                 {"macro": {"Loss": losses.mean(), "Accuracy": macro_acc, "Precision": macro_precision,
@@ -136,63 +146,25 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
     loss_fn = {'all': get_loss(config, device, reduction=None),
                'mean': get_loss(config, device, reduction="mean")}
 
-    trainable_params = get_net_trainable_params(net)
-    optimizer = optim.AdamW(trainable_params, lr=lr, weight_decay=weight_decay)
+    eval_metrics = evaluate(net, dataloaders['train'], loss_fn, config)
 
-    optimizer.zero_grad()
+    class_IOU = eval_metrics[1]['class']['IOU']
+    macro_IOU = eval_metrics[1]['macro']['IOU']
 
-    scheduler = build_scheduler(config, optimizer, num_steps_train)
+    max_length = max(len(crop) for crop in CLASS_NAMES)+5
+    max_i_length = len(str(len(CLASS_NAMES)))+5  # Get the length of the largest index
+    print(f"{'ID':<{max_i_length}} {'CROP_TYPE':<{max_length}} {'IoU'}")
+    print("-" * 70)
+    
 
-    writer = SummaryWriter(save_path)
-
-    BEST_IOU = 0
-    net.train()
-    for epoch in range(start_epoch, start_epoch + num_epochs):  # loop over the dataset multiple times
-        for step, sample in enumerate(dataloaders['train']):
-            # print("sample inputs shape: ", sample["labels"].shape, np.unique(sample["labels"]))
-            abs_step = start_global + (epoch - start_epoch) * num_steps_train + step
-            logits, ground_truth, loss = train_step(net, sample, loss_fn, optimizer, device, loss_input_fn=loss_input_fn)
-            if len(ground_truth) == 2:
-                labels, unk_masks = ground_truth
-            else:
-                labels = ground_truth
-                unk_masks = None
-            # print batch statistics ----------------------------------------------------------------------------------#
-            if abs_step % train_metrics_steps == 0:
-                logits = logits.permute(0, 3, 1, 2)
-                batch_metrics = get_mean_metrics(
-                    logits=logits, labels=labels, unk_masks=unk_masks, n_classes=num_classes, loss=loss, epoch=epoch,
-                    step=step)
-                write_mean_summaries(writer, batch_metrics, abs_step, mode="train", optimizer=optimizer)
-                print("abs_step: %d, train_metrics_steps: %d, epoch: %d, step: %5d, loss: %.7f, batch_iou: %.4f, batch accuracy: %.4f, batch precision: %.4f, "
-                      "batch recall: %.4f, batch F1: %.4f" %
-                      (abs_step,train_metrics_steps, epoch, step + 1, loss, batch_metrics['IOU'], batch_metrics['Accuracy'], batch_metrics['Precision'],
-                       batch_metrics['Recall'], batch_metrics['F1']))
-
-            if abs_step % save_steps == 0:
-                if len(local_device_ids) > 1:
-                    torch.save(net.module.state_dict(), "%s/%depoch_%dstep.pth" % (save_path, epoch, abs_step))
-                else:
-                    torch.save(net.state_dict(), "%s/%depoch_%dstep.pth" % (save_path, epoch, abs_step))
-
-            # evaluate model ------------------------------------------------------------------------------------------#
-            if abs_step % eval_steps == 0:
-                eval_metrics = evaluate(net, dataloaders['eval'], loss_fn, config)
-                if eval_metrics[1]['macro']['IOU'] > BEST_IOU:
-                    if len(local_device_ids) > 1:
-                        torch.save(net.module.state_dict(), "%s/best.pth" % (save_path))
-                    else:
-                        torch.save(net.state_dict(), "%s/best.pth" % (save_path))
-                    BEST_IOU = eval_metrics[1]['macro']['IOU']
+    for i, (crop, score) in enumerate(zip(CLASS_NAMES, class_IOU)):
+        print(f"{i:<{max_i_length}} {crop:<{max_length}} {score}")
+    print("-" * 70)
+    print(f"{'mean IOU':<{max_length}} {np.mean(class_IOU)}")
+    print(f"{'macro_IOU':<{max_length}} {np.mean(macro_IOU)}")
 
 
-                write_mean_summaries(writer, eval_metrics[1]['micro'], abs_step, mode="eval_micro", optimizer=None)
-                write_mean_summaries(writer, eval_metrics[1]['macro'], abs_step, mode="eval_macro", optimizer=None)
-                write_class_summaries(writer, [eval_metrics[0], eval_metrics[1]['class']], abs_step, mode="eval",
-                                      optimizer=None)
-                net.train()
 
-        scheduler.step_update(abs_step)
 
 
 
@@ -221,9 +193,7 @@ if __name__ == "__main__":
 
     net = get_model(config, device)
 
-    train_and_evaluate(net, dataloaders, config, device)
+    evaluate_model(net, dataloaders, config, device)
 
 
-# python train_and_eval/segmentation_training_transf.py --config configs/PASTIS24/TSViT_fold1.yaml
-
-# python train_and_eval/segmentation_training_transf.py --config configs/Arkansas/TSViT.yaml
+# python train_and_eval/validation_AR24.py --config configs/Arkansas/TSViT_AR24.yaml

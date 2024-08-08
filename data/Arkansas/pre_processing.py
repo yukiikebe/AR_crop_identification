@@ -177,6 +177,12 @@ def read_cdl_image(data_dir,date):
         cdl_image = src.read(1)
         num_bands = src.count
     # print("cdl_image ",np.unique(cdl_image))
+    
+    # print("cdl_image before", cdl_image.shape, cdl_image.dtype, np.unique(cdl_image))
+    # cdl_image = np.full((1908, 2842), 19).astype(np.uint8)
+    # print("cdl_image after", cdl_image.shape, cdl_image.dtype, np.unique(cdl_image))
+
+    # exit()
     return cdl_image
 
 
@@ -206,7 +212,7 @@ def read_series_satellite_and_cdl(satellite_image_dir:str, cdl_image_dir:str)->d
         cdl_image_expanded = np.expand_dims(cdl_image, axis=-1)
 
         stacked_image = stack_bands(satellite_images)
-        # stacked_image = np.concatenate([stacked_image, cdl_image_expanded], axis=-1)
+        stacked_image = np.concatenate([stacked_image, cdl_image_expanded], axis=-1)
         # print("stacked_image ", stacked_image.shape)
         # print("cdl_image ", cdl_image.shape)
         stacked_images.append(stacked_image)
@@ -230,8 +236,9 @@ def preprocess_AR(satellite_dir, cdl_dir, output_dir):
         pkl_data = {
             'img': series,
             'doy': doys,
-            'labels': #np.array(labels, dtype=np.uint8),
+            'labels': np.array(labels, dtype=np.uint8),
         }
+        # print("labels ", np.unique(pkl_data['labels']))
         with open(f'{output_dir}/{patch_idx[0]}_{patch_idx[1]}.pickle', 'wb') as f:
             pkl.dump(pkl_data, f)
 
@@ -257,8 +264,8 @@ if __name__ == "__main__":
 
     satellite_image_dir = "/home/vuonghn/research/dataset/satellite/arkansas/satellite_images/2023/"
     cdl_image_dir = "/home/vuonghn/research/dataset/satellite/arkansas/org_maral/cdl/"
-    pickle_dir = "/home/vuonghn/research/dataset/satellite/arkansas/arkansas24/pickle24x24"
-    split_dir = "/home/vuonghn/research/dataset/satellite/arkansas/arkansas24/fold-paths/"
+    pickle_dir = "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24_debug/pickle24x24"
+    split_dir = "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24_debug/fold-paths/"
 
     if not os.path.exists(pickle_dir):
         os.makedirs(pickle_dir)

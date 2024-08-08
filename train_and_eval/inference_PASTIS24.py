@@ -29,12 +29,7 @@ CLASS_NAMES = [
     'Mixed cereal', 'Sorghum', 'Void label',
 ]
 
-# CLASS_NAMES = ['Corn', 'Cotton', 'Rice', 'Sorghum', 'Soybeans', 'Winter Wheat', 
-#                'Dbl Crop WinWht/Soybeans', 'Other Hay/Non Alfalfa', 'Sod/Grass Seed', 
-#                'Fallow/Idle Cropland', 'Grapes', 'Pecans', 'Open Water', 'Developed/Open Space', 
-#                'Developed/Low Intensity', 'Developed/Med Intensity', 'Developed/High Intensity', 
-#                'Barren', 'Deciduous Forest', 'Evergreen Forest', 'Mixed Forest', 'Shrubland', 'Grassland/Pasture', 
-#                'Woody Wetlands', 'Herbaceous Wetlands', 'Dbl Crop Corn/Soybeans', 'other']
+
 
 
 class SingleSampleDataset(Dataset):
@@ -110,7 +105,7 @@ def inference(net, dataloader,device,output_vis):
                 all_outputs[h_idx:h_idx+24, w_idx:w_idx+24] = outputs[i]
     
     all_outputs = all_outputs[6:-6, 7:-7]
-    num_classes = 19
+    num_classes = len(CLASS_NAMES)
     rgb_image, color_codes = visualize_rgb(all_outputs, num_classes)
 
     # Get unique classes present in the image
@@ -178,7 +173,7 @@ def inference_AR(config_file,input_dir, output_vis):
 if __name__ == '__main__':
     config_file = 'configs/Arkansas/TSViT_PASTIS24.yaml'
     input_dir = '/home/vuonghn/research/dataset/satellite/arkansas/preprocessed_data/preprocessed_data_aKhoa'
-    output_vis = './output/visualized_rgb_with_legend.png'
+    output_vis = './output/visualized_rgb_with_legend-TSViT_AR24.png'
     inference_AR(config_file, input_dir, output_vis)
 
 

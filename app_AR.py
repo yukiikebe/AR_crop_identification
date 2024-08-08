@@ -12,7 +12,7 @@ from folium.plugins import Draw
 import shutil 
 from data.Arkansas.Download import download_dataset
 from data.Arkansas.pre_processing import preprocess_AR
-from train_and_eval.inference import inference_AR
+from Agriculture.DeepSatModels.train_and_eval.inference_AR24 import inference_AR
 ee.Authenticate()
 ee.Initialize(project='ee-vvuonghn')
 
