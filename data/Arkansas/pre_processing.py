@@ -1,5 +1,6 @@
 import xarray as xr
 import pickle as pkl
+import json
 import numpy as np
 import glob
 from skimage import exposure
@@ -14,6 +15,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
+from cdl_classes import CDL_CLASSES
 
 import pandas as pd
 
@@ -163,7 +165,7 @@ def read_satellite_image(data_dir,date)->dict:
     return satellite_image
 
 
-def read_cdl_image(data_dir,date):
+def read_cdl_image(cdl_image_path, threshold=50):
     """
     Read CDL image
     Args:
@@ -172,18 +174,30 @@ def read_cdl_image(data_dir,date):
     Returns:
     cdl image
     """
-    file_path = os.path.join(data_dir, f"rgb_{date}_cdl.tif")
-    with rasterio.open(file_path) as src:
+    with rasterio.open(cdl_image_path) as src:
         cdl_image = src.read(1)
-        num_bands = src.count
     # print("cdl_image ",np.unique(cdl_image))
-    
-    # print("cdl_image before", cdl_image.shape, cdl_image.dtype, np.unique(cdl_image))
-    # cdl_image = np.full((1908, 2842), 19).astype(np.uint8)
-    # print("cdl_image after", cdl_image.shape, cdl_image.dtype, np.unique(cdl_image))
+    class_ids, counts = np.unique(cdl_image, return_counts=True)
+    for class_id, count in zip(class_ids, counts):
+        if count < threshold:
+            cdl_image[cdl_image == class_id] = 255
 
-    # exit()
-    return cdl_image
+    class_ids, counts = np.unique(cdl_image, return_counts=True)
+
+    # Remap classes to increasing ID
+    remap_id = 0
+    classnames = {}
+    remapped_cdl_image = np.full((1908, 2842), -1).astype(np.uint8)
+    for class_id, count in zip(class_ids.tolist(), counts.tolist()):
+        remapped_cdl_image[cdl_image == class_id] = remap_id
+        classnames[class_id] = {
+            'cdl_name': CDL_CLASSES[class_id],
+            'remapped_id': remap_id,
+            'count': count,
+        }
+        remap_id += 1
+
+    return remapped_cdl_image, classnames
 
 
 def read_series_satellite_and_cdl(satellite_image_dir:str, cdl_image_dir:str)->dict:
@@ -202,14 +216,15 @@ def read_series_satellite_and_cdl(satellite_image_dir:str, cdl_image_dir:str)->d
     print(f"No. dates: {len(sorted_dates)}")
     print(sorted_dates)
 
+    cdl_image, unique_classnames = read_cdl_image(os.path.join(cdl_image_dir, 'rgb_27classes_cdl.tif'))
+    cdl_image_expanded = np.expand_dims(cdl_image, axis=-1)
+
     # satellite_images = {}
     stacked_images, doys = [], []
     for date in sorted_dates:
         satellite_images = read_satellite_image(satellite_image_dir,date)
         if satellite_images is None:
             continue
-        cdl_image = read_cdl_image(cdl_image_dir, "27classes")
-        cdl_image_expanded = np.expand_dims(cdl_image, axis=-1)
 
         stacked_image = stack_bands(satellite_images)
         stacked_image = np.concatenate([stacked_image, cdl_image_expanded], axis=-1)
@@ -223,10 +238,11 @@ def read_series_satellite_and_cdl(satellite_image_dir:str, cdl_image_dir:str)->d
     # print("stacked_images ", stacked_images.shape)
     # exit()
     tiled_images, patch_ids = create_splits(stacked_images, (N, N))
-    return tiled_images, patch_ids, doys
-def preprocess_AR(satellite_dir, cdl_dir, output_dir):
+    return tiled_images, patch_ids, doys, unique_classnames
 
-    tiled_satellite_series, patch_ids, doys = read_series_satellite_and_cdl(satellite_dir,cdl_dir)
+
+def preprocess_AR(satellite_dir, cdl_dir, output_dir):
+    tiled_satellite_series, patch_ids, doys, unique_classnames = read_series_satellite_and_cdl(satellite_dir, cdl_dir)
 
     for series, patch_idx in zip(tiled_satellite_series, patch_ids):
         # print("series ", series.shape)
@@ -234,7 +250,7 @@ def preprocess_AR(satellite_dir, cdl_dir, output_dir):
         labels = series[:1,:,:, -1]
 
         pkl_data = {
-            'img': series,
+            'img': series_image,
             'doy': doys,
             'labels': np.array(labels, dtype=np.uint8),
         }
@@ -242,8 +258,10 @@ def preprocess_AR(satellite_dir, cdl_dir, output_dir):
         with open(f'{output_dir}/{patch_idx[0]}_{patch_idx[1]}.pickle', 'wb') as f:
             pkl.dump(pkl_data, f)
 
+    return unique_classnames
+
+
 def split_data(pickle_dir, split_dir):
-    files = os.listdir(pickle_dir)
     latest_folder = pickle_dir.split('/')[-1]
     print(latest_folder)
     pickle_files = [os.path.join(latest_folder,f) for f in os.listdir(pickle_dir) if f.endswith('.pickle')]
@@ -262,18 +280,19 @@ def split_data(pickle_dir, split_dir):
 
 if __name__ == "__main__":
 
-    satellite_image_dir = "/home/vuonghn/research/dataset/satellite/arkansas/satellite_images/2023/"
-    cdl_image_dir = "/home/vuonghn/research/dataset/satellite/arkansas/org_maral/cdl/"
-    pickle_dir = "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24_debug/pickle24x24"
-    split_dir = "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24_debug/fold-paths/"
+    satellite_image_dir = "/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023/"
+    cdl_image_dir = "/home/khoavo/Desktop/workplace/satelite/cdl_arkansas/"
+    output_dir = "/home/khoavo/Desktop/workplace/satelite/AR23"
+    pickle_dir = os.path.join(output_dir, 'pickle24x24')
+    split_dir = os.path.join(output_dir, 'fold-paths')
 
     if not os.path.exists(pickle_dir):
         os.makedirs(pickle_dir)
     
     if not os.path.exists(split_dir):
         os.makedirs(split_dir)
-    preprocess_AR(satellite_image_dir, cdl_image_dir, pickle_dir)
-    # split_data(pickle_dir, split_dir)
+    unique_classnames = preprocess_AR(satellite_image_dir, cdl_image_dir, pickle_dir)
+    with open(os.path.join(output_dir, 'classnames.json'), 'w') as f:
+        json.dump(unique_classnames, f)
+    split_data(pickle_dir, split_dir)
     print("Done pre-processing Arkansas")
-
-

@@ -10,7 +10,6 @@ warnings.filterwarnings("ignore")
 import numpy as np
 
 
-
 def get_distr_dataloader(paths_file, root_dir, rank, world_size, transform=None, batch_size=32, num_workers=4,
                          shuffle=True, return_paths=False):
     """
