@@ -18,6 +18,7 @@ MODEL:
   scale_dim: 4
 
 DATASETS:
+  classnames: "/home/khoavo/Desktop/workplace/satelite/AR23/classnames.json"
   train:
     # dataset: "AR24"
     # label_map:
@@ -62,9 +63,10 @@ SOLVER:
   weight_decay: 0.000
 
 CHECKPOINT:
-  load_from_checkpoint: './saved_models/best_pastis_fold5.pth'
+  #load_from_checkpoint: './saved_models/best_pastis_fold5.pth'
+  load_from_checkpoint: './models/saved_models/AR23_subregion/best.pth'
   partial_restore: False
-  save_path: 'models/saved_models/AR24_debug/'
+  save_path: 'models/saved_models/AR23_subregion/'
   train_metrics_steps: 250
   eval_steps: 10 #2000
   save_steps: 20000000000

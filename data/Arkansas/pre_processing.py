@@ -2,7 +2,7 @@ import xarray as xr
 import pickle as pkl
 import json
 import numpy as np
-import glob
+from glob import glob
 from skimage import exposure
 import os
 import rasterio
@@ -15,7 +15,21 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
-from cdl_classes import CDL_CLASSES
+
+
+CDL_CLASSES = {
+    0: 'Background', 1: 'Corn', 2: 'Cotton', 3: 'Rice', 4: 'Sorghum', 5: 'Soybeans', 6: 'Sunflowers', 10: 'Peanuts',
+    12: 'Sweet Corn', 13: 'Pop or Orn Corn', 21: 'Barley', 23: 'Spring Wheat', 24: 'Winter Wheat', 26: 'Dbl Crop WinWht/Soybeans',
+    27: 'Rye', 28: 'Oats', 29: 'Millet', 36: 'Alfalfa', 37: 'Other Hay/Non Alfalfa', 43: 'Potatoes', 44: 'Other Crops', 45: 'Sugarcane',
+    46: 'Sweet Potatoes', 48: 'Watermelons', 49: 'Onions', 53: 'Peas', 54: 'Tomatoes', 57: 'Herbs', 58: 'Clover/Wildflowers',
+    59: 'Sod/Grass Seed', 60: 'Switchgrass', 61: 'Fallow/Idle Cropland', 67: 'Peaches', 68: 'Apples', 69: 'Grapes', 71: 'Other Tree Crops',
+    72: 'Citrus', 74: 'Pecans', 92: 'Aquaculture', 111: 'Open Water', 121: 'Developed/Open Space', 122: 'Developed/Low Intensity',
+    123: 'Developed/Medium Intensity', 124: 'Developed/High Intensity', 131: 'Barren', 141: 'Deciduous Forest', 142: 'Evergreen Forest',
+    143: 'Mixed Forest', 152: 'Shrubland', 176: 'Grass/Pasture', 190: 'Woody Wetlands', 195: 'Herbaceous Wetlands', 205: 'Triticale',
+    211: 'Olives', 212: 'Oranges', 219: 'Greens', 220: 'Plums', 222: 'Squash', 225: 'Dbl Crop WinWht/Corn', 226: 'Dbl Crop Oats/Corn',
+    228: 'Dbl Crop Triticale/Corn', 229: 'Pumpkins', 236: 'Dbl Crop WinWht/Sorghum', 237: 'Dbl Crop Barley/Corn', 238: 'Dbl Crop WinWht/Cotton', 240: 'Dbl Crop Soybeans/Oats',
+    241: 'Dbl Crop Corn/Soybeans', 242: 'Blueberries', 243: 'Cabbage', 254: 'Dbl Crop Barley/Soybeans',
+}
 
 import pandas as pd
 
@@ -180,14 +194,14 @@ def read_cdl_image(cdl_image_path, threshold=50):
     class_ids, counts = np.unique(cdl_image, return_counts=True)
     for class_id, count in zip(class_ids, counts):
         if count < threshold:
-            cdl_image[cdl_image == class_id] = 255
+            cdl_image[cdl_image == class_id] = 0
 
     class_ids, counts = np.unique(cdl_image, return_counts=True)
 
     # Remap classes to increasing ID
     remap_id = 0
     classnames = {}
-    remapped_cdl_image = np.full((1908, 2842), -1).astype(np.uint8)
+    remapped_cdl_image = np.full((cdl_image.shape[0], cdl_image.shape[1]), -1).astype(np.uint8)
     for class_id, count in zip(class_ids.tolist(), counts.tolist()):
         remapped_cdl_image[cdl_image == class_id] = remap_id
         classnames[class_id] = {
@@ -200,7 +214,7 @@ def read_cdl_image(cdl_image_path, threshold=50):
     return remapped_cdl_image, classnames
 
 
-def read_series_satellite_and_cdl(satellite_image_dir:str, cdl_image_dir:str)->dict:
+def read_series_satellite_and_cdl(satellite_image_dir:str)->dict:
     """
     Read series of satellite images
     Args:
@@ -210,13 +224,14 @@ def read_series_satellite_and_cdl(satellite_image_dir:str, cdl_image_dir:str)->d
     Returns:
     dict : dictionary of satellite images
     """
-    dates = os.listdir(satellite_image_dir)
+    dates = [v for v in os.listdir(satellite_image_dir) if os.path.isdir(os.path.join(satellite_image_dir, v))]
+    cdl_image_path = os.path.join(satellite_image_dir, 'cdl.tif')
     sorted_dates = sorted(dates, key=lambda date: datetime.strptime(date, "%Y-%m-%d"))
 
+    print(f"Processing {satellite_image_dir}")
     print(f"No. dates: {len(sorted_dates)}")
-    print(sorted_dates)
 
-    cdl_image, unique_classnames = read_cdl_image(os.path.join(cdl_image_dir, 'rgb_27classes_cdl.tif'))
+    cdl_image, unique_classnames = read_cdl_image(cdl_image_path)
     cdl_image_expanded = np.expand_dims(cdl_image, axis=-1)
 
     # satellite_images = {}
@@ -241,24 +256,35 @@ def read_series_satellite_and_cdl(satellite_image_dir:str, cdl_image_dir:str)->d
     return tiled_images, patch_ids, doys, unique_classnames
 
 
-def preprocess_AR(satellite_dir, cdl_dir, output_dir):
-    tiled_satellite_series, patch_ids, doys, unique_classnames = read_series_satellite_and_cdl(satellite_dir, cdl_dir)
+def preprocess_AR(satellite_dir, output_dir):
+    meta_patches = glob(os.path.join(satellite_dir, '*'))
+    all_unique_classnames = []
+    for meta_patch_dir in meta_patches:
+        cdl_image_path = os.path.join(satellite_image_dir, 'cdl.tif')
+        cdl_image, unique_classnames = read_cdl_image(cdl_image_path)
+        cdl_image_expanded = np.expand_dims(cdl_image, axis=-1)
 
-    for series, patch_idx in zip(tiled_satellite_series, patch_ids):
-        # print("series ", series.shape)
-        series_image = series[:,:,:,:-1]
-        labels = series[:1,:,:, -1]
+    for meta_patch_dir in meta_patches:
+        meta_patch_name = meta_patch_dir.split('/')[-1]
+        tiled_satellite_series, patch_ids, doys, unique_classnames = read_series_satellite_and_cdl(meta_patch_dir)
+        all_unique_classnames.append(unique_classnames)
+        import pdb; pdb.set_trace()
 
-        pkl_data = {
-            'img': series_image,
-            'doy': doys,
-            'labels': np.array(labels, dtype=np.uint8),
-        }
-        # print("labels ", np.unique(pkl_data['labels']))
-        with open(f'{output_dir}/{patch_idx[0]}_{patch_idx[1]}.pickle', 'wb') as f:
-            pkl.dump(pkl_data, f)
+        for series, patch_idx in zip(tiled_satellite_series, patch_ids):
+            # print("series ", series.shape)
+            series_image = series[:,:,:,:-1]
+            labels = series[:1,:,:, -1]
 
-    return unique_classnames
+            pkl_data = {
+                'img': series_image,
+                'doy': doys,
+                'labels': np.array(labels, dtype=np.uint8),
+            }
+            # print("labels ", np.unique(pkl_data['labels']))
+            with open(f'{output_dir}/{meta_patch_name}.{patch_idx[0]}_{patch_idx[1]}.pickle', 'wb') as f:
+                pkl.dump(pkl_data, f)
+
+    return all_unique_classnames
 
 
 def split_data(pickle_dir, split_dir):
@@ -280,9 +306,8 @@ def split_data(pickle_dir, split_dir):
 
 if __name__ == "__main__":
 
-    satellite_image_dir = "/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023/"
-    cdl_image_dir = "/home/khoavo/Desktop/workplace/satelite/cdl_arkansas/"
-    output_dir = "/home/khoavo/Desktop/workplace/satelite/AR23"
+    satellite_image_dir = "/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023_all/"
+    output_dir = "/home/khoavo/Desktop/workplace/satelite/AR23_all"
     pickle_dir = os.path.join(output_dir, 'pickle24x24')
     split_dir = os.path.join(output_dir, 'fold-paths')
 
@@ -291,7 +316,7 @@ if __name__ == "__main__":
     
     if not os.path.exists(split_dir):
         os.makedirs(split_dir)
-    unique_classnames = preprocess_AR(satellite_image_dir, cdl_image_dir, pickle_dir)
+    unique_classnames = preprocess_AR(satellite_image_dir, pickle_dir)
     with open(os.path.join(output_dir, 'classnames.json'), 'w') as f:
         json.dump(unique_classnames, f)
     split_data(pickle_dir, split_dir)

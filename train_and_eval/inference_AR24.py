@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.colors import ListedColormap
 import rasterio
+import json
+
 
 CLASS_NAMES = ['Corn', 'Cotton', 'Rice', 'Sorghum', 'Soybeans', 'Winter Wheat', 
                'Dbl Crop WinWht/Soybeans', 'Other Hay/Non Alfalfa', 'Sod/Grass Seed', 
@@ -25,35 +27,34 @@ CLASS_NAMES = ['Corn', 'Cotton', 'Rice', 'Sorghum', 'Soybeans', 'Winter Wheat',
                'Woody Wetlands', 'Herbaceous Wetlands', 'Dbl Crop Corn/Soybeans', 'other']
 
 color_map = np.array([
-    [160, 160, 160],  # Light Gray - Corn
-    [10, 128, 10],  # Dark Green - Cotton
-    [10, 10, 128],  # Dark Blue - Rice
-    [128, 128, 50],  # Olive variant - Sorghum
-    [50, 128, 128],  # Dark Cyan variant - Soybeans
-    [128, 50, 128],  # Purple variant - Winter Wheat
-    [192, 192, 192],  # Silver - Dbl Crop WinWht/Soybeans
-    [128, 0, 0],  # Maroon - Other Hay/Non Alfalfa
-    [128, 128, 50],  # Olive variant - Sod/Grass Seed
-    [0, 128, 0],  # Dark Green - Fallow/Idle Cropland
-    [128, 50, 128],  # Purple variant - Grapes
-    [0, 128, 128],  # Teal - Pecans
-    [0, 0, 128],  # Navy - Open Water
-    [255, 165, 0],  # Orange - Developed/Open Space
-    [255, 192, 203],  # Pink - Developed/Low Intensity
-    [165, 42, 42],  # Brown - Developed/Med Intensity
-    [255, 105, 180],  # Hot Pink - Developed/High Intensity 
-    [0, 255, 127],  # Spring Green - Barren
-    [70, 130, 180],  # Steel Blue - Deciduous Forest
-    [255, 105, 180],  # Hot Pink - Evergreen Forest X (ACTTUALLY) 19
-    [255, 69, 0],  # Red-Orange - Mixed Forest (X) PREDICT 20
-    [0, 191, 255],  # Deep Sky Blue - Shrubland 
-    [135, 206, 250],  # Light Sky Blue - Grassland/Pasture
-    [219, 112, 147],  # Pale Violet Red - Woody Wetlands
-    [138, 43, 226],  # Blue Violet - Herbaceous Wetlands
-    [75, 0, 130],  # Indigo - Dbl Crop Corn/Soybeans
-    [144, 238, 144]  # Light Green - other
+    [ 31, 119, 180],
+    [174, 199, 232],
+    [255, 127,  14],
+    [255, 187, 120],
+    [ 44, 160,  44],
+    [152, 223, 138],
+    [214,  39,  40],
+    [255, 152, 150],
+    [148, 103, 189],
+    [197, 176, 213],
+    [140,  86,  75],
+    [196, 156, 148],
+    [227, 119, 194],
+    [247, 182, 210],
+    [127, 127, 127],
+    [199, 199, 199],
+    [188, 189,  34],
+    [219, 219, 141],
+    [ 23, 190, 207],
+    [158, 218, 229],
+    [ 31, 119, 180] , # Repeat starts here
+    [174, 199, 232],
+    [255, 127,  14],
+    [255, 187, 120],
+    [ 44, 160,  44],
+    [152, 223, 138],
+    [214,  39,  40],
 ])
-
 
 def visualize_rgb(argmax_array, num_classes): 
     rgb_output = color_map[argmax_array]
@@ -93,14 +94,20 @@ def visualize_inference_results(output,output_vis):
     fig.savefig(os.path.join(output_vis,"visualized_rgb_with_legend-TSViT_AR24.png"))
     print(f"Image with legend saved as visualized_rgb_with_legend.png")
 
-def visualize_inference_ground_truth(output, ground_truth,output_vis):
+
+def visualize_inference_ground_truth(output, ground_truth,output_vis, class_dict):
     # Get unique classes present in the image
 
     print("pred ", np.unique(output))
     print("ground truth ", np.unique(ground_truth))
 
+    class_names = sorted(
+        [(v['cdl_name'], v['remapped_id']) for v in class_dict.values()],
+        key= lambda x: x[1]
+    )
+    class_names = [v[0] for v in class_names]
 
-    num_classes = len(CLASS_NAMES)
+    num_classes = len(class_names)
     rgb_output, color_codes_output = visualize_rgb(output, num_classes)
     rgb_ground_truth, color_codes_ground_truth = visualize_rgb(ground_truth, num_classes)
 
@@ -122,10 +129,10 @@ def visualize_inference_ground_truth(output, ground_truth,output_vis):
     # Create the color legend for both
     ax[0, 1].axis('off')
     ax[1, 1].axis('off')
-    for idx, class_idx in enumerate(unique_classes):
-        color = color_map[class_idx]
+    for idx, class_name in enumerate(class_names):
+        color = color_map[idx]
         ax[1, 1].add_patch(plt.Rectangle((0, len(unique_classes) - idx - 1), 1.2, 1.2, color=np.array(color) / 255.0))  # Increase the width and height of the rectangle
-        ax[1, 1].text(2, len(unique_classes) - idx - 0.5, f"{CLASS_NAMES[class_idx]}", va='center', ha='left', fontsize=12)  # Increase the fontsize and adjust the position
+        ax[1, 1].text(2, len(unique_classes) - idx - 0.5, f"{class_name}", va='center', ha='left', fontsize=12)  # Increase the fontsize and adjust the position
 
     ax[1, 1].set_ylim(0, len(unique_classes))
     ax[1, 1].set_xlim(0, 3)  # Adjust the x limit to accommodate the larger text
@@ -170,7 +177,9 @@ def inference(net, dataloader,device,output_vis):
     all_outputs = all_outputs[6:-6, 7:-7]
 
     return all_outputs
-def inference_AR(config_file,input_dir, output_vis, ground_truth_path=None):
+
+
+def inference_AR(config_file, input_dir, output_vis, ground_truth_path=None):
     # print("Inference Arkansas input ", config_file,input_dir, output_vis, ground_truth_path)
     
     # exit()
@@ -184,6 +193,8 @@ def inference_AR(config_file,input_dir, output_vis, ground_truth_path=None):
     eval_config['base_dir'] = input_dir
     eval_config['paths'] = list(glob(os.path.join(eval_config['base_dir'], '*.pickle')))
 
+    class_dict = json.load(open(config['DATASETS']['classnames'], 'r'))
+    config['MODEL']['num_classes'] = len(class_dict)
 
     # print("eval_config['paths'] ",eval_config['paths'])
     # exit()
@@ -199,23 +210,22 @@ def inference_AR(config_file,input_dir, output_vis, ground_truth_path=None):
     if checkpoint:
         load_from_checkpoint(net, checkpoint, partial_restore=False)
         
-    crop_types_inference = inference(net, eval_dataloader,device,output_vis)
-    visualize_inference_results(crop_types_inference,output_vis)
+    crop_types_inference = inference(net, eval_dataloader, device, output_vis)
+    #visualize_inference_results(crop_types_inference, output_vis)
 
     if ground_truth_path:
+        from data.Arkansas.pre_processing import read_cdl_image
+        ground_truth, classes = read_cdl_image(ground_truth_path)
         print("Visualizing compare with ground truth")
-        with rasterio.open(ground_truth_path) as src:
-            ground_truth = src.read(1)  # Read the first band
         # ground_truth[ground_truth == 19] = 20 # just test and fix bug
 
-        visualize_inference_ground_truth(crop_types_inference, ground_truth,output_vis)
+        visualize_inference_ground_truth(crop_types_inference, ground_truth, output_vis, class_dict)
 
 
 if __name__ == '__main__':
-    config_file = 'configs/Arkansas/TSViT_AR24.yaml'
-    input_dir = '/home/vuonghn/research/dataset/satellite/arkansas/preprocessed_data/preprocessed_data_aKhoa'
+    config_file = 'configs/Arkansas/TSViT_AR23.yaml'
+    input_dir = '/home/khoavo/Desktop/workplace/satelite/AR23/pickle24x24'
+    cdl_image_dir = "/home/khoavo/Desktop/workplace/satelite/cdl_arkansas/"
     output_vis = './output/'
-    ground_truth = '/home/vuonghn/research/dataset/satellite/arkansas/org_maral/cdl/rgb_27classes_cdl.tif'
+    ground_truth = '/home/khoavo/Desktop/workplace/satelite/cdl_arkansas/rgb_27classes_cdl.tif'
     inference_AR(config_file, input_dir, output_vis, ground_truth)
-
-

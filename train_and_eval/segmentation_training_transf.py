@@ -8,7 +8,8 @@ import torch.optim as optim
 from utils.lr_scheduler import build_scheduler
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
-import os
+import json
+
 from models import get_model
 from utils.config_files_utils import read_yaml, copy_yaml, get_params_values
 from utils.torch_utils import get_device, get_net_trainable_params, load_from_checkpoint
@@ -32,7 +33,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
         loss.backward()
         optimizer.step()
         return outputs, ground_truth, loss
-  
+
     def evaluate(net, evalloader, loss_fn, config):
         num_classes = config['MODEL']['num_classes']
         predicted_all = []
@@ -42,7 +43,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
         with torch.no_grad():
             for step, sample in enumerate(evalloader):
                 # print("evaluate: sample ",sample.keys())
-                
+
                 # sample_inputs = sample['inputs'].to(device) # torch.Size([24, 60, 24, 24, 11])
                 # print("evaluate: sample ",len(sample))
                 # print("evaluate: sample inputs ",sample[0][])
@@ -64,7 +65,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                     predicted_all.append(predicted.view(-1).cpu().numpy())
                     labels_all.append(target.view(-1).cpu().numpy())
                 losses_all.append(loss.view(-1).cpu().detach().numpy())
-                
+
                 # if step > 5:
                 #    break
 
@@ -216,6 +217,9 @@ if __name__ == "__main__":
 
     config = read_yaml(config_file)
     config['local_device_ids'] = device_ids
+
+    num_classes = len(json.load(open(config['DATASETS']['classnames'], 'r')))
+    config['MODEL']['num_classes'] = num_classes
 
     dataloaders = get_dataloaders(config)
 
