@@ -3,6 +3,7 @@ import os
 sys.path.insert(0, os.getcwd())
 import argparse
 import numpy as np
+from tqdm import tqdm
 import torch
 from glob import glob
 from models import get_model
@@ -19,53 +20,115 @@ import rasterio
 import json
 
 
-CLASS_NAMES = ['Corn', 'Cotton', 'Rice', 'Sorghum', 'Soybeans', 'Winter Wheat', 
-               'Dbl Crop WinWht/Soybeans', 'Other Hay/Non Alfalfa', 'Sod/Grass Seed', 
-               'Fallow/Idle Cropland', 'Grapes', 'Pecans', 'Open Water', 'Developed/Open Space', 
-               'Developed/Low Intensity', 'Developed/Med Intensity', 'Developed/High Intensity', 
-               'Barren', 'Deciduous Forest', 'Evergreen Forest', 'Mixed Forest', 'Shrubland', 'Grassland/Pasture', 
-               'Woody Wetlands', 'Herbaceous Wetlands', 'Dbl Crop Corn/Soybeans', 'other']
-
 color_map = np.array([
-    [ 31, 119, 180],
-    [174, 199, 232],
-    [255, 127,  14],
-    [255, 187, 120],
-    [ 44, 160,  44],
-    [152, 223, 138],
-    [214,  39,  40],
-    [255, 152, 150],
-    [148, 103, 189],
-    [197, 176, 213],
-    [140,  86,  75],
-    [196, 156, 148],
-    [227, 119, 194],
-    [247, 182, 210],
-    [127, 127, 127],
-    [199, 199, 199],
-    [188, 189,  34],
-    [219, 219, 141],
-    [ 23, 190, 207],
-    [158, 218, 229],
-    [ 31, 119, 180] , # Repeat starts here
-    [174, 199, 232],
-    [255, 127,  14],
-    [255, 187, 120],
-    [ 44, 160,  44],
-    [152, 223, 138],
-    [214,  39,  40],
+    [0, 0, 0],          #0
+    [0, 0, 0],          #1
+    [255, 210, 0],      #2
+    [0, 168, 227],      #3
+    [255, 158, 9],      #4
+    [37, 111,  0],      #5
+    [164, 111, 0],      #6
+    [111, 111,  0],     #7
+    [164, 241, 139],    #8
+    [174, 255, 221],    #9
+    [190, 190, 119],    #10
+    [181, 111, 91],     #11
+    [74, 111, 162],     #12
+    [154, 154, 154],    #13
+    [154, 154, 154],    #14
+    [154, 154, 154],    #15
+    [154, 154, 154],    #16
+    [204, 190, 162],    #17
+    [146, 204, 146],    #18
+    [146, 204, 146],    #19
+    [146, 204, 146],    #20
+    [197, 213, 158],    #21
+    [232, 255,190],     #22
+    [125, 176, 176],    #23
+    [125, 176, 176],    #24
+    [255, 37, 37],      #25
+    [111, 164, 0],      #26
+    [111, 37, 0],       #27
+    [255, 102, 102],    #28
+    [0, 255, 255],      #29
+    [255, 210, 0],      #30
+    [255, 210, 0],      #31
+    [255, 255, 0],      #32
+    [111, 0, 72],       #33
+    [125, 210, 255],    #34
+    [159, 88, 136],     #35
+    [255, 164, 225],    #36
+    [0, 174, 74],       #37
+    [37, 111, 0],       #38
+    [232, 190, 255],    #39
+    [164, 111, 0],      #40
+    [215, 181, 107],    #41
+    [0, 0, 153],        #42
+    [241, 162, 119],    #43
+    [255, 102, 102],    #44
+    [255, 102, 102],    #45
+    [111, 68, 136],     #46
+    [172, 0, 123],      #47
+    [255, 142, 170],    #48
+    [213, 158, 187],    #49
+    [83, 255, 0],       #50
+    [255, 204, 102],    #51
+    [164, 111, 0],      #52
+    [255, 102, 102],    #53
+    [221, 164, 9],      #54
+    [0, 174, 74],       #55
+    [225, 0, 123],      #56
+    [176, 125, 255],    #57
+    [227, 111, 37],     #58
+    [111, 37, 0],       #59
+    [255, 142, 170],    #60
 ])
+
+def pad_images_to_same_size(img1, img2):
+    """
+    Pads the smaller of the two images (img1 and img2) so that they both have the same dimensions.
+
+    Parameters:
+        img1 (numpy.ndarray): The first image (height, width, channels).
+        img2 (numpy.ndarray): The second image (height, width, channels).
+
+    Returns:
+        padded_img1 (numpy.ndarray): The padded version of img1.
+        padded_img2 (numpy.ndarray): The padded version of img2.
+    """
+    # Determine the difference in dimensions
+    height_diff = img1.shape[0] - img2.shape[0]
+    width_diff = img1.shape[1] - img2.shape[1]
+
+    # Pad img2 to match the dimensions of img1, or vice versa
+    if height_diff > 0:
+        img2 = np.pad(img2, ((0, height_diff), (0, 0), (0, 0)), mode='constant')
+    elif height_diff < 0:
+        img1 = np.pad(img1, ((0, -height_diff), (0, 0), (0, 0)), mode='constant')
+
+    if width_diff > 0:
+        img2 = np.pad(img2, ((0, 0), (0, width_diff), (0, 0)), mode='constant')
+    elif width_diff < 0:
+        img1 = np.pad(img1, ((0, 0), (0, -width_diff), (0, 0)), mode='constant')
+
+    return img1, img2
+
 
 def visualize_rgb(argmax_array, num_classes): 
     rgb_output = color_map[argmax_array]
-    # Get the color codes
-    color_codes = {i: tuple(color_map[i]) for i in range(num_classes)}
-    return rgb_output, color_codes
+    return rgb_output
 
-def visualize_inference_results(output,output_vis):
+
+def visualize_inference_results(output,output_vis, class_dict):
     # Get unique classes present in the image
-    num_classes = len(CLASS_NAMES)
-    rgb_image, color_codes = visualize_rgb(output, num_classes)
+    class_names = sorted(
+        [(v['class_name'], v['remapped_id']) for v in class_dict.values()],
+        key= lambda x: x[1]
+    )
+    class_names = [v[0] for v in class_names]
+
+    num_classes = len(class_names)
+    rgb_image = visualize_rgb(output, num_classes)
     unique_classes = np.unique(output)
 
     # Plotting the image and the color legend
@@ -78,10 +141,10 @@ def visualize_inference_results(output,output_vis):
 
     # Create the color legend
     ax[1].axis('off')
-    for idx, class_idx in enumerate(unique_classes):
-        color = color_map[class_idx]
+    for idx, class_name in enumerate(class_names):
+        color = color_map[idx]
         ax[1].add_patch(plt.Rectangle((0, len(unique_classes) - idx - 1), 1, 1, color=np.array(color) / 255.0))
-        ax[1].text(1.2, len(unique_classes) - idx - 0.5, f"{CLASS_NAMES[class_idx]}", va='center', ha='left', fontsize=14)
+        ax[1].text(1.2, len(unique_classes) - idx - 0.5, f"{class_name}", va='center', ha='left', fontsize=14)
 
     ax[1].set_ylim(0, len(unique_classes))
     ax[1].set_xlim(0, 2)
@@ -95,62 +158,62 @@ def visualize_inference_results(output,output_vis):
     print(f"Image with legend saved as visualized_rgb_with_legend.png")
 
 
-def visualize_inference_ground_truth(output, ground_truth,output_vis, class_dict):
+def visualize_inference_ground_truth(output, ground_truth, output_path, class_dict):
     # Get unique classes present in the image
 
     print("pred ", np.unique(output))
+    output[output > len(color_map)] = 0
     print("ground truth ", np.unique(ground_truth))
-
-    class_names = sorted(
-        [(v['cdl_name'], v['remapped_id']) for v in class_dict.values()],
-        key= lambda x: x[1]
-    )
+    
+    class_names = []
+    for v in class_dict.values():
+        if v['remapped_id'] != 0 or v['class_name'] == 'Others':
+            class_names.append((v['class_name'], v['remapped_id']))
+    class_names = sorted(class_names, key= lambda x: x[1])
     class_names = [v[0] for v in class_names]
 
     num_classes = len(class_names)
-    rgb_output, color_codes_output = visualize_rgb(output, num_classes)
-    rgb_ground_truth, color_codes_ground_truth = visualize_rgb(ground_truth, num_classes)
+    rgb_output = visualize_rgb(output, num_classes)
 
-    unique_classes = np.unique(np.concatenate([output, ground_truth]))
+    rgb_output, ground_truth = pad_images_to_same_size(rgb_output, ground_truth)
 
-    # Plotting the images and the color legend
-    fig, ax = plt.subplots(2, 2, figsize=(15, 12), gridspec_kw={'width_ratios': [4, 1]})
+    # Adjust the width_ratios to give more space to the legend
+    fig, ax = plt.subplots(1, 2, figsize=(18, 12), gridspec_kw={'width_ratios': [3, 1]})
 
-    # Plot the RGB output
-    ax[0, 0].imshow(rgb_output)
-    ax[0, 0].axis('off')
-    ax[0, 0].set_title('Predicted Output')
+    # Create a new subplot for the RGB output and ground truth, stacked vertically
+    ax[0].imshow(np.vstack([rgb_output, np.zeros((100, rgb_output.shape[1], 3),dtype=np.uint8) + 255, ground_truth]))
+    ax[0].axis('off')
+    ax[0].set_title('Predicted Output (top) and Ground Truth (bottom)')
 
-    # Plot the RGB ground truth
-    ax[1, 0].imshow(rgb_ground_truth)
-    ax[1, 0].axis('off')
-    ax[1, 0].set_title('Ground Truth')
+    # Create the color legend
+    ax[1].axis('off')
 
-    # Create the color legend for both
-    ax[0, 1].axis('off')
-    ax[1, 1].axis('off')
     for idx, class_name in enumerate(class_names):
         color = color_map[idx]
-        ax[1, 1].add_patch(plt.Rectangle((0, len(unique_classes) - idx - 1), 1.2, 1.2, color=np.array(color) / 255.0))  # Increase the width and height of the rectangle
-        ax[1, 1].text(2, len(unique_classes) - idx - 0.5, f"{class_name}", va='center', ha='left', fontsize=12)  # Increase the fontsize and adjust the position
+        ax[1].add_patch(plt.Rectangle((0, len(class_names) - idx - 1), 1.2, 1.2, color=np.array(color) / 255.0))
+        ax[1].text(2, len(class_names) - idx - 0.5, f"{class_name}", va='center', ha='left', fontsize=12)
 
-    ax[1, 1].set_ylim(0, len(unique_classes))
-    ax[1, 1].set_xlim(0, 3)  # Adjust the x limit to accommodate the larger text
-    ax[1, 1].set_title('Color Legend')
+    ax[1].set_ylim(0, len(class_names))
+    ax[1].set_xlim(0, 3)
+    ax[1].set_title('Color Legend')
 
     plt.tight_layout()
     plt.show()
 
     # Save the combined images with the legend to a file
-    fig.savefig(output_vis+"/output_ground_truth_vis.png")
-    print("Images with legend saved as output_ground_truth_vis.png")
+    fig.savefig(output_path)
 
 
-def inference(net, dataloader,device,output_vis):
+def inference(net, dataloader, groundtruth, device):
     net.eval()
-    all_outputs = np.zeros((1920, 2856), dtype=np.uint8)
+
+    h, w = groundtruth.shape[:2]
+    pad_h = 24 - h % 24
+    pad_w = 24 - w % 24
+
+    all_outputs = np.zeros((h + pad_h, w + pad_w), dtype=np.uint8)
     with torch.no_grad():
-        for sample, patch_ids in dataloader:
+        for sample, patch_ids in tqdm(dataloader):
             inputs = sample['inputs'].to(device)
             # print("inputs shape: ", inputs.shape)
             # exit()
@@ -168,21 +231,15 @@ def inference(net, dataloader,device,output_vis):
             # labels_np = labels.cpu().numpy() if labels.is_cuda else labels.numpy()
             for i in range(outputs.shape[0]):
                 h_idx, w_idx = [int(s) for s in patch_ids[i].split('_')]
-                # print(h_idx, w_idx)
                 all_outputs[h_idx:h_idx+24, w_idx:w_idx+24] = outputs[i]
-    # if np.any(all_outputs == 19):
-    #     print("Value 19 is present in all_outputs")
-    # else:
-    #     print("Value 19 is not present in all_outputs") # this case
-    all_outputs = all_outputs[6:-6, 7:-7]
 
     return all_outputs
 
 
-def inference_AR(config_file, input_dir, output_vis, ground_truth_path=None):
-    # print("Inference Arkansas input ", config_file,input_dir, output_vis, ground_truth_path)
-    
-    # exit()
+def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir):
+    output_path = os.path.join(output_dir, sub_region + '.png')
+    if os.path.isfile(output_path):
+        return
     config = read_yaml(config_file)
     device_ids = config['DEVICE']['device_id']
     device = get_device(device_ids, allow_cpu=False)
@@ -190,8 +247,9 @@ def inference_AR(config_file, input_dir, output_vis, ground_truth_path=None):
     model_config = config['MODEL']
     eval_config  = config['DATASETS']['eval']
     eval_config['bidir_input'] = model_config['architecture'] == "ConvBiRNN"
-    eval_config['base_dir'] = input_dir
+    eval_config['base_dir'] = os.path.join(input_dir, sub_region)
     eval_config['paths'] = list(glob(os.path.join(eval_config['base_dir'], '*.pickle')))
+    eval_config['batch_size'] = 32
 
     class_dict = json.load(open(config['DATASETS']['classnames'], 'r'))
     config['MODEL']['num_classes'] = len(class_dict)
@@ -205,27 +263,23 @@ def inference_AR(config_file, input_dir, output_vis, ground_truth_path=None):
             batch_size=eval_config['batch_size'], shuffle=False, return_paths=True,
             num_workers=eval_config['num_workers'])
 
+    ground_truth_path = os.path.join(raw_dir, sub_region, 'cdl.tif')
+    ground_truth = plt.imread(ground_truth_path)[..., :3]
+
     net = get_model(config, device)
     checkpoint = config['CHECKPOINT']["load_from_checkpoint"]
     if checkpoint:
         load_from_checkpoint(net, checkpoint, partial_restore=False)
-        
-    crop_types_inference = inference(net, eval_dataloader, device, output_vis)
-    #visualize_inference_results(crop_types_inference, output_vis)
 
-    if ground_truth_path:
-        from data.Arkansas.pre_processing import read_cdl_image
-        ground_truth, classes = read_cdl_image(ground_truth_path)
-        print("Visualizing compare with ground truth")
-        # ground_truth[ground_truth == 19] = 20 # just test and fix bug
+    crop_types_inference = inference(net, eval_dataloader, ground_truth, device)
 
-        visualize_inference_ground_truth(crop_types_inference, ground_truth, output_vis, class_dict)
+    visualize_inference_ground_truth(crop_types_inference, ground_truth, output_path, class_dict)
 
 
 if __name__ == '__main__':
-    config_file = 'configs/Arkansas/TSViT_AR23.yaml'
-    input_dir = '/home/khoavo/Desktop/workplace/satelite/AR23/pickle24x24'
-    cdl_image_dir = "/home/khoavo/Desktop/workplace/satelite/cdl_arkansas/"
-    output_vis = './output/'
-    ground_truth = '/home/khoavo/Desktop/workplace/satelite/cdl_arkansas/rgb_27classes_cdl.tif'
-    inference_AR(config_file, input_dir, output_vis, ground_truth)
+    config_file = 'configs/Arkansas/TSViT_AR23_infer.yaml'
+    raw_dir = '/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023_all/'
+    input_dir = '/home/khoavo/Desktop/workplace/satelite/AR23_all/pickle24x24/'
+    sub_region = '12_12'
+    output_dir = './output/'
+    inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir)

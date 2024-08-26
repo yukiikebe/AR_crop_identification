@@ -42,13 +42,27 @@ class SatImDataset(Dataset):
                 on a sample.
         """
         if type(csv_file) == str:
-            self.data_paths = pd.read_csv(csv_file, header=None)
+            data_paths = pd.read_csv(csv_file, header=None)
         elif type(csv_file) in [list, tuple]:
-            self.data_paths = pd.concat([pd.read_csv(csv_file_, header=None) for csv_file_ in csv_file], axis=0).reset_index(drop=True)
+            data_paths = pd.concat([pd.read_csv(csv_file_, header=None) for csv_file_ in csv_file], axis=0).reset_index(drop=True)
         self.root_dir = root_dir
         self.transform = transform
         self.multilabel = multilabel
         self.return_paths = return_paths
+
+        self.data_paths = []
+        if 'filtered' in csv_file:
+            for idx in range(len(data_paths)):
+                pkl_file = os.path.join(self.root_dir, data_paths.iloc[idx, 0])
+                self.data_paths.append(pkl_file)
+        else:
+            for idx in range(len(data_paths)):
+                subdir = data_paths.iloc[idx, 0]
+                pkl_files = os.listdir(os.path.join(self.root_dir, subdir))
+                pkl_files = [os.path.join(self.root_dir, subdir, pf) for pf in pkl_files]
+                self.data_paths.extend(pkl_files)
+
+        print('CSV file: ', csv_file, '. Dataset size: ', len(self.data_paths))
 
     def __len__(self):
         return len(self.data_paths)
@@ -57,8 +71,7 @@ class SatImDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        img_name = os.path.join(self.root_dir, self.data_paths.iloc[idx, 0])
-
+        img_name = self.data_paths[idx]
 
         with open(img_name, 'rb') as handle:
             sample = pickle.load(handle, encoding='latin1') # (['img', 'labels', 'doy'])

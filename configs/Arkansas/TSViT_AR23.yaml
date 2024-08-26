@@ -18,7 +18,7 @@ MODEL:
   scale_dim: 4
 
 DATASETS:
-  classnames: "/home/khoavo/Desktop/workplace/satelite/AR23/classnames.json"
+  classnames: "/home/khoavo/Desktop/workplace/satelite/AR23_all/classnames.json"
   train:
     # dataset: "AR24"
     # label_map:
@@ -26,14 +26,14 @@ DATASETS:
     # batch_size: 32
     # extra_data:
     # num_workers: 4
-    dataset: "AR23"
+    dataset: "AR23_all"
     label_map:
     max_seq_len: 50
     batch_size: 8
     extra_data:
     num_workers: 4
   eval:
-    dataset: "AR23"
+    dataset: "AR23_all"
     label_map:
     max_seq_len: 50
     batch_size: 8
@@ -41,7 +41,7 @@ DATASETS:
     num_workers: 4
 
   test:
-    dataset: "AR23"
+    dataset: "AR23_all"
     label_map:
     max_seq_len: 50
     batch_size: 8
@@ -55,7 +55,7 @@ SOLVER:
   loss_function:  masked_cross_entropy
   class_weights:
   lr_scheduler: 'cosine'
-  lr_base: 1e-3
+  lr_base: 1e-5
   lr_min: 5e-6
   lr_start: 1e-8
   num_cycles: 1
@@ -63,12 +63,11 @@ SOLVER:
   weight_decay: 0.000
 
 CHECKPOINT:
-  #load_from_checkpoint: './saved_models/best_pastis_fold5.pth'
-  load_from_checkpoint: './models/saved_models/AR23_subregion/best.pth'
+  load_from_checkpoint: './saved_models/best_pastis_fold5.pth'
   partial_restore: False
-  save_path: 'models/saved_models/AR23_subregion/'
+  save_path: 'models/saved_models/AR23_all/'
   train_metrics_steps: 250
-  eval_steps: 10 #2000
-  save_steps: 20000000000
+  eval_steps: 25000
+  save_steps: 10000
 DEVICE: 
   device_id: [0]

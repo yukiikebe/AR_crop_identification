@@ -43,7 +43,7 @@ def get_dataloaders(config):
         dataloaders['train'] = get_arkansas_dataloader(
             paths_file = train_config['paths'], root_dir=train_config['base_dir'],
             transform=PASTIS_segmentation_transform(model_config, is_training=True),
-            batch_size=train_config['batch_size'], shuffle=True, num_workers=train_config['num_workers'])
+            batch_size=train_config['batch_size'], shuffle=True, return_paths=True, num_workers=train_config['num_workers'])
     else:
         dataloaders['train'] = get_france_dataloader(
             paths_file=train_config['paths'], root_dir=train_config['base_dir'],

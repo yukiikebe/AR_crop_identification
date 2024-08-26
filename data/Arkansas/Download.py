@@ -5,6 +5,7 @@ import os
 import multiprocessing
 from tqdm import tqdm
 import rasterio
+import matplotlib.pyplot as plt
 
 
 ee.Authenticate()
@@ -20,6 +21,23 @@ roig = [
 start_day = '2023-01-01'
 end_day = '2023-12-31'
 data_dir = '/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023_all/'
+
+
+def save_tci_image(blue_band_path, green_band_path, red_band_path, output_path):
+    # Open the TIF files
+    if not (os.path.isfile(blue_band_path) and os.path.isfile(green_band_path) and os.path.isfile(red_band_path)):
+        return
+
+    with rasterio.open(blue_band_path) as blue_band:
+        blue = blue_band.read(1)
+    with rasterio.open(green_band_path) as green_band:
+        green = green_band.read(1)
+    with rasterio.open(red_band_path) as red_band:
+        red = red_band.read(1)
+
+    # Stack the bands
+    stacked_data = np.stack((red, green, blue), axis=-1)
+    plt.imsave(output_path, stacked_data)
 
 
 def save_rgb_image(red_path, green_path, blue_path, output_path):
@@ -163,22 +181,27 @@ def download_dataset(roig, start_day, end_day, save_dir):
             geemap.ee_export_image(image_SCL, filename=output_path, scale=20, crs='EPSG:3857', region=roi)
 
         # TCI_R band with 10m resolution
-        #image_TCI_R = image.select('TCI_R')
-        #output_path = os.path.join(path_download, f'TCI_R_{date}.tif')
-        #if not os.path.exists(output_path):
-        #    geemap.ee_export_image(image_TCI_R, filename=output_path, scale=10, crs='EPSG:3857', region=roi)
+        image_TCI_R = image.select('TCI_R')
+        tci_r_path = os.path.join(path_download, f'TCI_R_{date}.tif')
+        if not os.path.exists(tci_r_path):
+            geemap.ee_export_image(image_TCI_R, filename=tci_r_path, scale=10, crs='EPSG:3857', region=roi)
 
         # TCI_G band with 10m resolution
-        #image_TCI_G = image.select('TCI_G')
-        #output_path = os.path.join(path_download, f'TCI_G_{date}.tif')
-        #if not os.path.exists(output_path):
-        #    geemap.ee_export_image(image_TCI_G, filename=output_path, scale=10, crs='EPSG:3857', region=roi)
+        image_TCI_G = image.select('TCI_G')
+        tci_g_path = os.path.join(path_download, f'TCI_G_{date}.tif')
+        if not os.path.exists(tci_g_path):
+            geemap.ee_export_image(image_TCI_G, filename=tci_g_path, scale=10, crs='EPSG:3857', region=roi)
 
         # TCI_B band with 10m resolution
-        #image_TCI_B = image.select('TCI_B')
-        #output_path = os.path.join(path_download, f'TCI_B_{date}.tif')
-        #if not os.path.exists(output_path):
-        #    geemap.ee_export_image(image_TCI_B, filename=output_path, scale=10, crs='EPSG:3857', region=roi)
+        image_TCI_B = image.select('TCI_B')
+        tci_b_path = os.path.join(path_download, f'TCI_B_{date}.tif')
+        if not os.path.exists(tci_b_path):
+            geemap.ee_export_image(image_TCI_B, filename=tci_b_path, scale=10, crs='EPSG:3857', region=roi)
+
+        tci_rgb_path = os.path.join(path_download, f'TCI_{date}.jpg')
+        if not os.path.exists(tci_rgb_path):
+            save_tci_image(tci_b_path, tci_g_path, tci_r_path, tci_rgb_path)
+
 
         # MSK_CLDPRB band with 20m resolution
         #image_MSK_CLDPRB = image.select('MSK_CLDPRB')
@@ -212,8 +235,6 @@ if __name__ == "__main__":
     # Create linspace for longitude and latitude
     lon_range = np.linspace(lon_min, lon_max, 21)  # 20 intervals, so 21 points
     lat_range = np.linspace(lat_min, lat_max, 21)
-    print(lon_range)
-    print(lat_range)
 
     # Function to get the four corners of a grid cell
     def get_grid_corners(i, j, lon_range, lat_range):
@@ -238,7 +259,6 @@ if __name__ == "__main__":
         grid_dir, grid_corners = grid_data
         os.makedirs(grid_dir, exist_ok=True)
         download_dataset(grid_corners, start_day, end_day, grid_dir)
-
 
     with multiprocessing.Pool() as pool:
         with tqdm(total=len(grids)) as pbar:

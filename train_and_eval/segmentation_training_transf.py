@@ -66,8 +66,8 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                     labels_all.append(target.view(-1).cpu().numpy())
                 losses_all.append(loss.view(-1).cpu().detach().numpy())
 
-                # if step > 5:
-                #    break
+                if step > 1000:
+                    break
 
         print("finished iterating over dataset after step %d" % step)
         print("calculating metrics...")
@@ -142,14 +142,14 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
 
     optimizer.zero_grad()
 
-    scheduler = build_scheduler(config, optimizer, num_steps_train)
+    #scheduler = build_scheduler(config, optimizer, num_steps_train)
 
     writer = SummaryWriter(save_path)
 
     BEST_IOU = 0
     net.train()
     for epoch in range(start_epoch, start_epoch + num_epochs):  # loop over the dataset multiple times
-        for step, sample in enumerate(dataloaders['train']):
+        for step, (sample, paths) in enumerate(dataloaders['train']):
             # print("sample inputs shape: ", sample["labels"].shape, np.unique(sample["labels"]))
             abs_step = start_global + (epoch - start_epoch) * num_steps_train + step
             logits, ground_truth, loss = train_step(net, sample, loss_fn, optimizer, device, loss_input_fn=loss_input_fn)
@@ -193,8 +193,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                                       optimizer=None)
                 net.train()
 
-        scheduler.step_update(abs_step)
-
+        #scheduler.step_update(abs_step)
 
 
 if __name__ == "__main__":

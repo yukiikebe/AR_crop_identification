@@ -8,6 +8,12 @@ T31TFM_1618:
     paths_train: ".../train_paths.csv"
     paths_eval: ".../eval_paths.csv"
 
+AR23_all:
+    basedir: "/home/khoavo/Desktop/workplace/satelite/AR23_all"
+    paths_train: "/home/khoavo/Desktop/workplace/satelite/AR23_all/fold-paths/train_data_filtered.csv"
+    paths_eval: "/home/khoavo/Desktop/workplace/satelite/AR23_all/fold-paths/val_data.csv"
+    paths_test: "/home/khoavo/Desktop/workplace/satelite/AR23_all/fold-paths/test_data.csv"
+
 AR23:
     basedir: "/home/khoavo/Desktop/workplace/satelite/AR23"
     paths_train: "/home/khoavo/Desktop/workplace/satelite/AR23/fold-paths/train_data.csv"

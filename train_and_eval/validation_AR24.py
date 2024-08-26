@@ -1,5 +1,7 @@
 import sys
 import os
+import json
+from tqdm import tqdm
 sys.path.insert(0, os.getcwd())
 import argparse
 import torch
@@ -8,7 +10,6 @@ import torch.optim as optim
 from utils.lr_scheduler import build_scheduler
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
-import os
 from models import get_model
 from utils.config_files_utils import read_yaml, copy_yaml, get_params_values
 from utils.torch_utils import get_device, get_net_trainable_params, load_from_checkpoint
@@ -28,8 +29,6 @@ CLASS_NAMES = ['Corn', 'Cotton', 'Rice', 'Sorghum', 'Soybeans', 'Winter Wheat',
 
 def evaluate_model(net, dataloaders, config, device, lin_cls=False):
 
-
-  
     def evaluate(net, evalloader, loss_fn, config):
         num_classes = config['MODEL']['num_classes']
         predicted_all = []
@@ -37,7 +36,7 @@ def evaluate_model(net, dataloaders, config, device, lin_cls=False):
         losses_all = []
         net.eval()
         with torch.no_grad():
-            for step, sample in enumerate(evalloader):
+            for step, sample in enumerate(tqdm(evalloader)):
                 # print("evaluate: sample ",sample.keys())
                 
                 # sample_inputs = sample['inputs'].to(device) # torch.Size([24, 60, 24, 24, 11])
@@ -49,19 +48,6 @@ def evaluate_model(net, dataloaders, config, device, lin_cls=False):
                 logits = logits.permute(0, 2, 3, 1)
                 _, predicted = torch.max(logits.data, -1) # torch.Size([24, 24, 24])
                 # print("evaluate: predicted ",predicted.shape)
-                # predicted[predicted == 20] = 19
-
-                # if torch.any(sample["labels"] == 19):
-                #     print("Value 19 is present in labels")
-                #     # exit()
-                # else:
-                #     print("Value 19 is not present in labels") # this case
-
-                # if torch.any(predicted == 19):
-                #     print("Value 19 is present in all_outputs")
-                #     exit()
-                # else:
-                #     print("Value 19 is not present in all_outputs") # this case
                 ground_truth = loss_input_fn(sample, device)
                 # print("evaluate: ground_truth ",ground_truth.shape)
                 loss = loss_fn['all'](logits, ground_truth)
@@ -74,9 +60,6 @@ def evaluate_model(net, dataloaders, config, device, lin_cls=False):
                     predicted_all.append(predicted.view(-1).cpu().numpy())
                     labels_all.append(target.view(-1).cpu().numpy())
                 losses_all.append(loss.view(-1).cpu().detach().numpy())
-                
-                # if step > 5:
-                #    break
 
         print("finished iterating over dataset after step %d" % step)
         print("calculating metrics...")
@@ -146,7 +129,7 @@ def evaluate_model(net, dataloaders, config, device, lin_cls=False):
     loss_fn = {'all': get_loss(config, device, reduction=None),
                'mean': get_loss(config, device, reduction="mean")}
 
-    eval_metrics = evaluate(net, dataloaders['train'], loss_fn, config)
+    eval_metrics = evaluate(net, dataloaders['eval'], loss_fn, config)
 
     class_IOU = eval_metrics[1]['class']['IOU']
     macro_IOU = eval_metrics[1]['macro']['IOU']
@@ -162,10 +145,6 @@ def evaluate_model(net, dataloaders, config, device, lin_cls=False):
     print("-" * 70)
     print(f"{'mean IOU':<{max_length}} {np.mean(class_IOU)}")
     print(f"{'macro_IOU':<{max_length}} {np.mean(macro_IOU)}")
-
-
-
-
 
 
 if __name__ == "__main__":
@@ -188,6 +167,9 @@ if __name__ == "__main__":
 
     config = read_yaml(config_file)
     config['local_device_ids'] = device_ids
+
+    num_classes = len(json.load(open(config['DATASETS']['classnames'], 'r')))
+    config['MODEL']['num_classes'] = num_classes
 
     dataloaders = get_dataloaders(config)
 
