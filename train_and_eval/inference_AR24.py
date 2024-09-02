@@ -118,44 +118,47 @@ def visualize_rgb(argmax_array, num_classes):
     rgb_output = color_map[argmax_array]
     return rgb_output
 
+def visualize_inference(output, output_path, class_dict):
+	# Get unique classes present in the image
 
-def visualize_inference_results(output,output_vis, class_dict):
-    # Get unique classes present in the image
-    class_names = sorted(
-        [(v['class_name'], v['remapped_id']) for v in class_dict.values()],
-        key= lambda x: x[1]
-    )
-    class_names = [v[0] for v in class_names]
+	print("pred ", np.unique(output))
+	output[output > len(color_map)] = 0
+	
+	class_names = []
+	for v in class_dict.values():
+		if v['remapped_id'] != 0 or v['class_name'] == 'Others':
+			class_names.append((v['class_name'], v['remapped_id']))
+	class_names = sorted(class_names, key= lambda x: x[1])
+	class_names = [v[0] for v in class_names]
 
-    num_classes = len(class_names)
-    rgb_image = visualize_rgb(output, num_classes)
-    unique_classes = np.unique(output)
+	num_classes = len(class_names)
+	rgb_output = visualize_rgb(output, num_classes)
 
-    # Plotting the image and the color legend
-    fig, ax = plt.subplots(1, 2, figsize=(12, 6), gridspec_kw={'width_ratios': [4, 1]})
+	# Adjust the width_ratios to give more space to the legend
+	fig, ax = plt.subplots(1, 2, figsize=(9, 12), gridspec_kw={'width_ratios': [4, 1]})
 
-    # Plot the RGB image
-    ax[0].imshow(rgb_image)
-    ax[0].axis('off')
-    ax[0].set_title('Visualized RGB Image')
+	# Create a new subplot for the RGB output and ground truth, stacked vertically
+	ax[0].imshow(rgb_output)
+	ax[0].axis('off')
+	ax[0].set_title('Predicted Output')
 
-    # Create the color legend
-    ax[1].axis('off')
-    for idx, class_name in enumerate(class_names):
-        color = color_map[idx]
-        ax[1].add_patch(plt.Rectangle((0, len(unique_classes) - idx - 1), 1, 1, color=np.array(color) / 255.0))
-        ax[1].text(1.2, len(unique_classes) - idx - 0.5, f"{class_name}", va='center', ha='left', fontsize=14)
+	# Create the color legend
+	ax[1].axis('off')
 
-    ax[1].set_ylim(0, len(unique_classes))
-    ax[1].set_xlim(0, 2)
-    ax[1].set_title('Color Legend')
+	for idx, class_name in enumerate(class_names):
+		color = color_map[idx]
+		ax[1].add_patch(plt.Rectangle((0, len(class_names) - idx - 1), 1.2, 1.2, color=np.array(color) / 255.0))
+		ax[1].text(2, len(class_names) - idx - 0.5, f"{class_name}", va='center', ha='left', fontsize=12)
 
-    plt.tight_layout()
-    plt.show()
+	ax[1].set_ylim(0, len(class_names))
+	ax[1].set_xlim(0, 3)
+	ax[1].set_title('Color Legend')
 
-    # Save the combined image with the legend to a file
-    fig.savefig(os.path.join(output_vis,"visualized_rgb_with_legend-TSViT_AR24.png"))
-    print(f"Image with legend saved as visualized_rgb_with_legend.png")
+	plt.tight_layout()
+	plt.show()
+
+	# Save the combined images with the legend to a file
+	fig.savefig(output_path)
 
 
 def visualize_inference_ground_truth(output, ground_truth, output_path, class_dict):
@@ -236,7 +239,7 @@ def inference(net, dataloader, groundtruth, device):
     return all_outputs
 
 
-def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir):
+def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_gt=True):
     output_path = os.path.join(output_dir, sub_region + '.png')
     if os.path.isfile(output_path):
         return
@@ -273,13 +276,17 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir):
 
     crop_types_inference = inference(net, eval_dataloader, ground_truth, device)
 
-    visualize_inference_ground_truth(crop_types_inference, ground_truth, output_path, class_dict)
+    if show_gt:
+        visualize_inference_ground_truth(crop_types_inference, ground_truth, output_path, class_dict)
+    else:
+        visualize_inference(crop_types_inference, output_path, class_dict)
+
 
 
 if __name__ == '__main__':
     config_file = 'configs/Arkansas/TSViT_AR23_infer.yaml'
     raw_dir = '/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023_all/'
     input_dir = '/home/khoavo/Desktop/workplace/satelite/AR23_all/pickle24x24/'
-    sub_region = '12_12'
+    sub_region = '1_1'
     output_dir = './output/'
-    inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir)
+    inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_gt=False)

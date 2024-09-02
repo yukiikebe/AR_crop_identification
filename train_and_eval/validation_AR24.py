@@ -27,7 +27,7 @@ CLASS_NAMES = ['Corn', 'Cotton', 'Rice', 'Sorghum', 'Soybeans', 'Winter Wheat',
                'Barren', 'Deciduous Forest', 'Evergreen Forest', 'Mixed Forest', 'Shrubland', 'Grassland/Pasture', 
                'Woody Wetlands', 'Herbaceous Wetlands', 'Dbl Crop Corn/Soybeans', 'other']
 
-def evaluate_model(net, dataloaders, config, device, lin_cls=False):
+def evaluate_model(net, dataloaders, config, class_dict, device, lin_cls=False):
 
     def evaluate(net, evalloader, loss_fn, config):
         num_classes = config['MODEL']['num_classes']
@@ -60,6 +60,10 @@ def evaluate_model(net, dataloaders, config, device, lin_cls=False):
                     predicted_all.append(predicted.view(-1).cpu().numpy())
                     labels_all.append(target.view(-1).cpu().numpy())
                 losses_all.append(loss.view(-1).cpu().detach().numpy())
+                if step > 5000:
+                    break
+        print(np.unique(predicted_all, return_counts=True))
+        print(np.unique(labels_all, return_counts=True))
 
         print("finished iterating over dataset after step %d" % step)
         print("calculating metrics...")
@@ -134,13 +138,18 @@ def evaluate_model(net, dataloaders, config, device, lin_cls=False):
     class_IOU = eval_metrics[1]['class']['IOU']
     macro_IOU = eval_metrics[1]['macro']['IOU']
 
-    max_length = max(len(crop) for crop in CLASS_NAMES)+5
-    max_i_length = len(str(len(CLASS_NAMES)))+5  # Get the length of the largest index
+    class_names = []
+    for v in class_dict.values():
+        if v['count'] >= 500:
+            class_names.append([v['class_name'], v['remapped_id']])
+    class_names = sorted(class_names, key=lambda x: x[1])
+    class_names = [n[0] for n in class_names]
+    max_length = max(len(crop) for crop in class_names)+5
+    max_i_length = len(str(len(class_names)))+5  # Get the length of the largest index
     print(f"{'ID':<{max_i_length}} {'CROP_TYPE':<{max_length}} {'IoU'}")
     print("-" * 70)
-    
 
-    for i, (crop, score) in enumerate(zip(CLASS_NAMES, class_IOU)):
+    for i, (crop, score) in enumerate(zip(class_names, class_IOU)):
         print(f"{i:<{max_i_length}} {crop:<{max_length}} {score}")
     print("-" * 70)
     print(f"{'mean IOU':<{max_length}} {np.mean(class_IOU)}")
@@ -168,14 +177,15 @@ if __name__ == "__main__":
     config = read_yaml(config_file)
     config['local_device_ids'] = device_ids
 
-    num_classes = len(json.load(open(config['DATASETS']['classnames'], 'r')))
+    class_dict = json.load(open(config['DATASETS']['classnames'], 'r'))
+    num_classes = len(class_dict)
     config['MODEL']['num_classes'] = num_classes
 
     dataloaders = get_dataloaders(config)
 
     net = get_model(config, device)
 
-    evaluate_model(net, dataloaders, config, device)
+    evaluate_model(net, dataloaders, config, class_dict, device)
 
 
 # python train_and_eval/validation_AR24.py --config configs/Arkansas/TSViT_AR24.yaml

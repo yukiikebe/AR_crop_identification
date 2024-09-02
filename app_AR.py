@@ -298,9 +298,10 @@ def app():
                 config_file = 'configs/Arkansas/TSViT_AR23_infer.yaml'
                 raw_dir = '/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023_all/'
                 input_dir = '/home/khoavo/Desktop/workplace/satelite/AR23_all/pickle24x24/'
-                output_dir = './output/'
+                output_dir = './output_app/'
+                os.makedirs(output_dir, exist_ok=True)
                 for lat_id, lon_id in subregion_indices:
-                    inference_AR(config_file, raw_dir, input_dir, f'{lon_id}_{lat_id}', output_dir)
+                    inference_AR(config_file, raw_dir, input_dir, f'{lon_id}_{lat_id}', output_dir, show_gt=False)
             st.success('Completed the dataset inference!'+str(start_date)+' to '+str(end_date))
 
             cols = st.columns(len(subregion_indices))

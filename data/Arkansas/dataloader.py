@@ -61,6 +61,8 @@ class SatImDataset(Dataset):
                 pkl_files = os.listdir(os.path.join(self.root_dir, subdir))
                 pkl_files = [os.path.join(self.root_dir, subdir, pf) for pf in pkl_files]
                 self.data_paths.extend(pkl_files)
+        if 'val' in csv_file: 
+            self.data_paths = self.data_paths[5000:]
 
         print('CSV file: ', csv_file, '. Dataset size: ', len(self.data_paths))
 

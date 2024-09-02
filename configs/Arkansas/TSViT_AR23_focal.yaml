@@ -1,0 +1,74 @@
+MODEL:
+  architecture:  "TSViT"
+  img_res: 24
+  max_seq_len: 50
+  num_channels: 11
+  num_features: 16
+  num_classes:  27
+  ignore_background: False
+  dropout: 0.
+  patch_size: 2
+  dim: 128
+  temporal_depth: 4
+  spatial_depth: 4
+  heads: 4
+  pool: 'cls'
+  dim_head: 32
+  emb_dropout: 0.
+  scale_dim: 4
+
+DATASETS:
+  classnames: "/home/khoavo/Desktop/workplace/satelite/AR23_all/classnames.json"
+  train:
+    # dataset: "AR24"
+    # label_map:
+    # max_seq_len: 60
+    # batch_size: 32
+    # extra_data:
+    # num_workers: 4
+    dataset: "AR23_all"
+    label_map:
+    max_seq_len: 50
+    batch_size: 8
+    extra_data:
+    num_workers: 4
+  eval:
+    dataset: "AR23_all"
+    label_map:
+    max_seq_len: 50
+    batch_size: 8
+    extra_data:
+    num_workers: 4
+
+  test:
+    dataset: "AR23_all"
+    label_map:
+    max_seq_len: 50
+    batch_size: 8
+    extra_data:
+    num_workers: 4
+
+SOLVER:
+  num_epochs: 200
+  num_warmup_epochs: 10
+  steps: (0, 80000)
+  loss_function:  masked_focal_loss
+  gamma: 2.0
+  class_weights:
+  lr_scheduler: 'cosine'
+  lr_base: 1e-5
+  lr_min: 5e-6
+  lr_start: 1e-8
+  num_cycles: 1
+  reset_lr: True   # resets lr to base value when loading pretrained model
+  weight_decay: 0.000
+
+CHECKPOINT:
+  load_from_checkpoint: './saved_models/best_pastis_fold5.pth'
+  partial_restore: False
+  save_path: 'models/saved_models/AR23_all_focal/'
+  train_metrics_steps: 250
+  eval_steps: 25000
+  save_steps: 10000
+DEVICE: 
+  device_id: [0]
