@@ -18,6 +18,22 @@ from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
 
 
+# Sample requirements
+sample_requirements = {
+    1: 1,  # January
+    2: 1,  # February
+    3: 1,  # March
+    4: 2,  # April
+    5: 2,  # May
+    6: 2,  # June
+    7: 2,  # July
+    8: 2,  # August
+    9: 2,  # September
+    10: 1, # October
+    11: 1, # November
+    12: 1  # December
+}
+
 CDL_CLASSES = {
     0: 'Background', 1: 'Corn', 2: 'Cotton', 3: 'Rice', 4: 'Sorghum', 5: 'Soybeans', 6: 'Sunflowers', 10: 'Peanuts', 12: 'Sweet Corn',
     13: 'Pop or Orn Corn', 21: 'Barley', 23: 'Spring Wheat', 24: 'Winter Wheat', 26: 'Dbl Crop WinWht/Soybeans', 27: 'Rye', 28: 'Oats',
@@ -31,6 +47,9 @@ CDL_CLASSES = {
     236: 'Dbl Crop WinWht/Sorghum', 237: 'Dbl Crop Barley/Corn', 238: 'Dbl Crop WinWht/Cotton', 240: 'Dbl Crop Soybeans/Oats',
     241: 'Dbl Crop Corn/Soybeans', 242: 'Blueberries', 243: 'Cabbage', 254: 'Dbl Crop Barley/Soybeans', 255: 'Others',
 }
+num_classes = len(CDL_CLASSES)
+print(f"Number of classes in CDL_CLASSES: {num_classes}")
+
 
 
 SELECTED_BANDS = {
@@ -39,6 +58,33 @@ SELECTED_BANDS = {
     "SCL": ["SCL"], # 20m resolution
 }
 
+
+def resample_dates(dates):
+    # Convert dates to DataFrame
+    df = pd.DataFrame(dates, columns=['date'])
+    df['date'] = pd.to_datetime(df['date'])
+    df['month'] = df['date'].dt.month
+    df['day'] = df['date'].dt.day
+    
+    resampled_dates = []
+    
+    # Group by month and sample
+    for month, group in df.groupby('month'):
+        sample_size = sample_requirements.get(month, 0)
+        if sample_size > 0:
+            group = group.sort_values(by='date')
+            if sample_size == 1:
+                # Prefer the date in the middle of the month
+                middle_date = group.iloc[(group['day'] - 15).abs().argsort()[:1]]
+                resampled_dates.extend(middle_date['date'].dt.strftime('%Y-%m-%d').tolist())
+            elif sample_size == 2:
+                # Prefer the beginning and ending of the month
+                beginning_date = group.iloc[:1]
+                ending_date = group.iloc[-1:]
+                resampled_dates.extend(beginning_date['date'].dt.strftime('%Y-%m-%d').tolist())
+                resampled_dates.extend(ending_date['date'].dt.strftime('%Y-%m-%d').tolist())
+    
+    return resampled_dates
 
 def scl_mapping(img, data_dir, date):
     # Define the colors in HEX and convert them to RGB
@@ -210,6 +256,7 @@ def read_series_satellite_and_cdl(satellite_image_dir:str, remap_classes: str)->
     dict : dictionary of satellite images
     """
     dates = [v for v in os.listdir(satellite_image_dir) if os.path.isdir(os.path.join(satellite_image_dir, v))]
+    dates = resample_dates(dates)
     cdl_image_path = os.path.join(satellite_image_dir, 'cdl.tif')
     sorted_dates = sorted(dates, key=lambda date: datetime.strptime(date, "%Y-%m-%d"))
 
@@ -242,10 +289,11 @@ def read_series_satellite_and_cdl(satellite_image_dir:str, remap_classes: str)->
 
 
 def preprocess_sub_region(subregion_dir, output_dir, remap_classes):
+
     meta_patch_name = subregion_dir.split('/')[-1]
-    #if os.path.isdir(f'{output_dir}/{meta_patch_name}'):
+    if not os.path.isdir(f'{output_dir}/{meta_patch_name}'):
     #    continue
-    #os.makedirs(f'{output_dir}/{meta_patch_name}')
+       os.makedirs(f'{output_dir}/{meta_patch_name}')
     tiled_satellite_series, patch_ids, doys = read_series_satellite_and_cdl(subregion_dir, remap_classes)
 
     for series, patch_idx in zip(tiled_satellite_series, patch_ids):
@@ -267,6 +315,8 @@ def preprocess_sub_region(subregion_dir, output_dir, remap_classes):
 def preprocess_AR(satellite_dir, output_dir, threshold=500):
     meta_patches = glob(os.path.join(satellite_dir, '*'))
     all_unique_classnames = Counter()
+
+
     for meta_patch_dir in tqdm(meta_patches):
         cdl_image_path = os.path.join(meta_patch_dir, 'cdl.tif')
         with rasterio.open(cdl_image_path) as src:
@@ -291,7 +341,7 @@ def preprocess_AR(satellite_dir, output_dir, threshold=500):
     for k, v in remap_classes.items():
         print('Class ID: ', k, 'Info: ', v)
 
-    with multiprocessing.Pool(8) as pool:
+    with multiprocessing.Pool(16) as pool:
         with tqdm(total=len(meta_patches)) as pbar:
             for _ in pool.imap_unordered(
                 partial(preprocess_sub_region, output_dir=output_dir, remap_classes=remap_classes),
@@ -320,20 +370,20 @@ def split_data(pickle_dir, split_dir):
 
 
 if __name__ == "__main__":
-    satellite_image_dir = "/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023_all/"
-    output_dir = "/home/khoavo/Desktop/workplace/satelite/AR23_all"
+    satellite_image_dir = "/data/datasets/satellite/raw_arkansas_2023/2023_all"
+    output_dir = "/data/vuonghn/datasets/satellite/AR23_processed"
     pickle_dir = os.path.join(output_dir, 'pickle24x24')
     split_dir = os.path.join(output_dir, 'fold-paths')
     #output_dir = "/mnt/vhvkhoa_ssd2/datasets"
     #pickle_dir = os.path.join(output_dir, 'AR23_pickles_all')
 
-    #if not os.path.exists(pickle_dir):
-    #    os.makedirs(pickle_dir)
+    if not os.path.exists(pickle_dir):
+       os.makedirs(pickle_dir)
 
     if not os.path.exists(split_dir):
         os.makedirs(split_dir)
     remap_class_info = preprocess_AR(satellite_image_dir, pickle_dir)
     with open(os.path.join(output_dir, 'classnames.json'), 'w') as f:
         json.dump(remap_class_info, f)
-    #split_data(pickle_dir, split_dir)
+    split_data(pickle_dir, split_dir)
     print("Done pre-processing Arkansas")

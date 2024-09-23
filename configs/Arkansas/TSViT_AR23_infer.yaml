@@ -18,7 +18,7 @@ MODEL:
   scale_dim: 4
 
 DATASETS:
-  classnames: "/home/khoavo/Desktop/workplace/satelite/AR23_all/classnames.json"
+  classnames: "/data/datasets/satellite/AR23_all/classnames.json"
   train:
     # dataset: "AR24"
     # label_map:
@@ -28,23 +28,23 @@ DATASETS:
     # num_workers: 4
     dataset: "AR23_all"
     label_map:
-    max_seq_len: 50
-    batch_size: 8
+    max_seq_len: 20
+    batch_size: 640
     extra_data:
     num_workers: 4
   eval:
     dataset: "AR23_all"
     label_map:
-    max_seq_len: 50
-    batch_size: 8
+    max_seq_len: 20
+    batch_size: 640
     extra_data:
     num_workers: 4
 
   test:
     dataset: "AR23_all"
     label_map:
-    max_seq_len: 50
-    batch_size: 8
+    max_seq_len: 20
+    batch_size: 640
     extra_data:
     num_workers: 4
 
@@ -63,11 +63,11 @@ SOLVER:
   weight_decay: 0.000
 
 CHECKPOINT:
-  load_from_checkpoint: './models/saved_models/AR23_all_focal/2epoch_490000step.pth'
+  load_from_checkpoint: './models/saved_models/AR23_all_focal_re-sample/best.pth'
   partial_restore: False
   save_path: 'models/saved_models/AR23_subregion/'
   train_metrics_steps: 250
   eval_steps: 10 #2000
   save_steps: 20000000000
 DEVICE: 
-  device_id: [0]
+  device_id: [2,3,4,5,6]

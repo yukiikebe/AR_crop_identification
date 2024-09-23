@@ -62,8 +62,8 @@ def evaluate_model(net, dataloaders, config, class_dict, device, lin_cls=False):
                 losses_all.append(loss.view(-1).cpu().detach().numpy())
                 if step > 5000:
                     break
-        print(np.unique(predicted_all, return_counts=True))
-        print(np.unique(labels_all, return_counts=True))
+        # print(np.unique(predicted_all, return_counts=True))
+        # print(np.unique(labels_all, return_counts=True))
 
         print("finished iterating over dataset after step %d" % step)
         print("calculating metrics...")
@@ -160,7 +160,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
     parser.add_argument('--config', help='configuration (.yaml) file to use')
-    parser.add_argument('--device', default='0', type=str,
+    parser.add_argument('--device', default='2,3,4,5,6', type=str,
                          help='gpu ids to use')
     parser.add_argument('--lin', action='store_true',
                          help='train linear classifier only')
@@ -189,3 +189,4 @@ if __name__ == "__main__":
 
 
 # python train_and_eval/validation_AR24.py --config configs/Arkansas/TSViT_AR24.yaml
+# python train_and_eval/validation_AR24.py --config configs/Arkansas/TSViT_AR23_infer.yaml

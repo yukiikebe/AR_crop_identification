@@ -72,10 +72,10 @@ def create_splits(imgs, input_shape, pad_mode="reflect"):
 
 
 if __name__ == '__main__':
-    raw_root_dir = '/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023_all'
-    root_dir = '/home/khoavo/Desktop/workplace/satelite/AR23_all/'
-    csv_file = '/home/khoavo/Desktop/workplace/satelite/AR23_all/fold-paths/train_data.csv'
-    filtered_csv_file = '/home/khoavo/Desktop/workplace/satelite/AR23_all/fold-paths/train_data_filtered.csv'
+    raw_root_dir = '/data/datasets/satellite/raw_arkansas_2023/2023_all'
+    root_dir = '/data/vuonghn/datasets/satellite/AR23_processed'
+    csv_file = '/data/vuonghn/datasets/satellite/AR23_processed/fold-paths/train_data.csv'
+    filtered_csv_file = '/data/vuonghn/datasets/satellite/AR23_processed/fold-paths/train_data_filtered.csv'
     max_num = 100
 
     cls_interest = [
