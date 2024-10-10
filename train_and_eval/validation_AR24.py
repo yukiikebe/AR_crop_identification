@@ -60,8 +60,8 @@ def evaluate_model(net, dataloaders, config, class_dict, device, lin_cls=False):
                     predicted_all.append(predicted.view(-1).cpu().numpy())
                     labels_all.append(target.view(-1).cpu().numpy())
                 losses_all.append(loss.view(-1).cpu().detach().numpy())
-                if step > 5000:
-                    break
+                # if step > 1000:
+                #     break
         # print(np.unique(predicted_all, return_counts=True))
         # print(np.unique(labels_all, return_counts=True))
 
@@ -112,6 +112,13 @@ def evaluate_model(net, dataloaders, config, class_dict, device, lin_cls=False):
     local_device_ids = config['local_device_ids']
     weight_decay = get_params_values(config['SOLVER'], "weight_decay", 0)
 
+
+    print("n train: ", len(dataloaders['train']))
+    print("n eval: ", len(dataloaders['eval']))
+
+
+    
+
     start_global = 1
     start_epoch = 1
     if checkpoint:
@@ -160,7 +167,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
     parser.add_argument('--config', help='configuration (.yaml) file to use')
-    parser.add_argument('--device', default='2,3,4,5,6', type=str,
+    parser.add_argument('--device', default='4', type=str,
                          help='gpu ids to use')
     parser.add_argument('--lin', action='store_true',
                          help='train linear classifier only')
@@ -178,7 +185,7 @@ if __name__ == "__main__":
     config['local_device_ids'] = device_ids
 
     class_dict = json.load(open(config['DATASETS']['classnames'], 'r'))
-    num_classes = len(class_dict)
+    num_classes = 2#len(class_dict)
     config['MODEL']['num_classes'] = num_classes
 
     dataloaders = get_dataloaders(config)

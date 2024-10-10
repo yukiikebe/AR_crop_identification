@@ -18,7 +18,7 @@ MODEL:
   scale_dim: 4
 
 DATASETS:
-  classnames: "/data/datasets/satellite/AR23_all/classnames.json"
+  classnames: "/home/vuonghn/research/code/Agriculture/fold/fold-paths/classnames.json"
   train:
     # dataset: "AR24"
     # label_map:
@@ -29,14 +29,14 @@ DATASETS:
     dataset: "AR23_all"
     label_map:
     max_seq_len: 20
-    batch_size: 640
+    batch_size: 128
     extra_data:
     num_workers: 4
   eval:
     dataset: "AR23_all"
     label_map:
     max_seq_len: 20
-    batch_size: 640
+    batch_size: 128
     extra_data:
     num_workers: 4
 
@@ -44,7 +44,7 @@ DATASETS:
     dataset: "AR23_all"
     label_map:
     max_seq_len: 20
-    batch_size: 640
+    batch_size: 128
     extra_data:
     num_workers: 4
 
@@ -63,11 +63,12 @@ SOLVER:
   weight_decay: 0.000
 
 CHECKPOINT:
-  load_from_checkpoint: './models/saved_models/AR23_all_focal_re-sample/best.pth'
+  load_from_checkpoint: './models/saved_models/AR23_crop_noncrop_focal/best.pth'
   partial_restore: False
   save_path: 'models/saved_models/AR23_subregion/'
   train_metrics_steps: 250
   eval_steps: 10 #2000
   save_steps: 20000000000
 DEVICE: 
-  device_id: [2,3,4,5,6]
+  device_id: [4]
+  # device_id: [2]

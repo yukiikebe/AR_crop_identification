@@ -22,7 +22,7 @@ import json
 
 color_map = np.array([
     [0, 0, 0],          #0
-    [0, 0, 0],          #1
+    [255, 0, 0],          #1
     [255, 210, 0],      #2
     [0, 168, 227],      #3
     [255, 158, 9],      #4
@@ -255,7 +255,7 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
     eval_config['batch_size'] = 32
 
     class_dict = json.load(open(config['DATASETS']['classnames'], 'r'))
-    config['MODEL']['num_classes'] = len(class_dict)
+    config['MODEL']['num_classes'] =  len(class_dict)
 
     # print("eval_config['paths'] ",eval_config['paths'])
     # exit()
@@ -285,8 +285,8 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
 
 if __name__ == '__main__':
     config_file = 'configs/Arkansas/TSViT_AR23_infer.yaml'
-    raw_dir = '/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023_all/'
-    input_dir = '/home/khoavo/Desktop/workplace/satelite/AR23_all/pickle24x24/'
-    sub_region = '1_1'
+    raw_dir = '/data/datasets/satellite/raw_arkansas_2023/2023_all/'
+    input_dir = '/data/vuonghn/datasets/satellite/AR23_processed/pickle24x24/'
+    sub_region = '17_10'
     output_dir = './output/'
-    inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_gt=False)
+    inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_gt=True)

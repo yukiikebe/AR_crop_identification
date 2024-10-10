@@ -10,8 +10,8 @@ T31TFM_1618:
 
 AR23_all:
     basedir: "/data/vuonghn/datasets/satellite/AR23_processed"
-    paths_train: "/data/vuonghn/datasets/satellite/AR23_processed/fold-paths/train_data_filtered.csv"
-    paths_eval: "/data/vuonghn/datasets/satellite/AR23_processed/fold-paths/val_data.csv"
+    paths_train: "/home/vuonghn/research/code/Agriculture/fold/fold-paths/train_data.csv"
+    paths_eval: "/home/vuonghn/research/code/Agriculture/fold/fold-paths/train_data.csv"
     paths_test: "/data/vuonghn/datasets/satellite/AR23_processed/fold-paths/test_data.csv"
 
 AR23:

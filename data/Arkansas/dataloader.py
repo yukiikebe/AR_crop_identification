@@ -8,7 +8,29 @@ import pickle
 import warnings
 warnings.filterwarnings("ignore")
 import numpy as np
+import yaml
 
+# Load the YAML file
+with open('data/Arkansas/cdl.yaml', 'r') as file:
+    data = yaml.safe_load(file)
+
+# Extract keys from crop_type and non_crop_type and convert them to integers
+crop_labels = list(map(int, data['crop_type'].keys()))
+non_crop_labels = list(map(int, data['non_crop_type'].keys()))
+
+
+# print("crop_labels ", crop_labels)
+# print("non_crop_labels ", non_crop_labels)
+# exit()
+
+def convert_to_crop_non_crop_labels(labels):
+    """
+    Convert the labels to crop/non-crop labels
+    """
+    crop_mask = torch.isin(labels, torch.tensor(crop_labels))
+    labels = torch.zeros_like(labels)  # Set all values to 0
+    labels[crop_mask] = 1  # Set crop labels to 1
+    return labels
 
 def get_distr_dataloader(paths_file, root_dir, rank, world_size, transform=None, batch_size=32, num_workers=4,
                          shuffle=True, return_paths=False):
@@ -56,6 +78,8 @@ class SatImDataset(Dataset):
                 pkl_file = os.path.join(self.root_dir, data_paths.iloc[idx, 0])
                 self.data_paths.append(pkl_file)
         else:
+            # print("csv file ", csv_file)
+            # exit()
             for idx in range(len(data_paths)):
                 subdir = data_paths.iloc[idx, 0]
                 pkl_files = os.listdir(os.path.join(self.root_dir, subdir))
@@ -64,7 +88,8 @@ class SatImDataset(Dataset):
         if 'val' in csv_file: 
             self.data_paths = self.data_paths[5000:]
 
-        print('CSV file: ', csv_file, '. Dataset size: ', len(self.data_paths))
+        # print('CSV file: ', csv_file, '. Dataset size: ', len(self.data_paths))
+        # exit()
 
     def __len__(self):
         return len(self.data_paths)
@@ -100,7 +125,9 @@ class SatImDataset(Dataset):
 
         if self.transform:
             sample = self.transform(sample)  #dict_keys(['inputs', 'labels', 'seq_lengths', 'unk_masks'])
-        # print("sample ", sample.keys())
+        # print("labels in dataloader 0 ", sample["labels"].shape, np.unique(sample["labels"]))
+        sample["labels"] = convert_to_crop_non_crop_labels(sample["labels"])
+        # print("labels in dataloader 1 ", sample["labels"].shape, np.unique(sample["labels"]))
         # print("after transform" , sample['inputs'].shape) #torch.Size([60, 24, 24, 11])
         # print(img_name , sample['inputs'].shape) #torch.Size([60, 24, 24, 11])
         # exit()

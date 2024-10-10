@@ -364,8 +364,8 @@ def split_data(pickle_dir, split_dir):
     #test_df = pd.DataFrame(test_data, columns=['file_path'])
 
     # Save DataFrames to CSV files
-    train_df.to_csv(os.path.join(split_dir, 'train_data.csv'), index=False, header=False)
-    val_df.to_csv(os.path.join(split_dir, 'val_data.csv'), index=False, header=False)
+    train_df.to_csv(os.path.join(split_dir, 'train_sub_data.csv'), index=False, header=False)
+    val_df.to_csv(os.path.join(split_dir, 'val_sub_data.csv'), index=False, header=False)
     #test_df.to_csv(os.path.join(split_dir, 'test_data.csv'), index=False, header=False)
 
 
@@ -377,13 +377,13 @@ if __name__ == "__main__":
     #output_dir = "/mnt/vhvkhoa_ssd2/datasets"
     #pickle_dir = os.path.join(output_dir, 'AR23_pickles_all')
 
-    if not os.path.exists(pickle_dir):
-       os.makedirs(pickle_dir)
+    # if not os.path.exists(pickle_dir):
+    #    os.makedirs(pickle_dir)
 
-    if not os.path.exists(split_dir):
-        os.makedirs(split_dir)
-    remap_class_info = preprocess_AR(satellite_image_dir, pickle_dir)
-    with open(os.path.join(output_dir, 'classnames.json'), 'w') as f:
-        json.dump(remap_class_info, f)
+    # if not os.path.exists(split_dir):
+    #     os.makedirs(split_dir)
+    # remap_class_info = preprocess_AR(satellite_image_dir, pickle_dir)
+    # with open(os.path.join(output_dir, 'classnames.json'), 'w') as f:
+    #     json.dump(remap_class_info, f)
     split_data(pickle_dir, split_dir)
     print("Done pre-processing Arkansas")
