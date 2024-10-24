@@ -18,6 +18,24 @@ import matplotlib
 from matplotlib.colors import ListedColormap
 import rasterio
 import json
+import yaml
+from collections import defaultdict
+
+
+
+# Load the YAML file
+with open('data/Arkansas/cdl.yaml', 'r') as file:
+    data = yaml.safe_load(file)
+
+# Extract keys from crop_type and non_crop_type and convert them to integers
+crop_labels = list(map(int, data['crop_type'].keys()))
+non_crop_labels = list(map(int, data['non_crop_type'].keys()))
+
+
+# print("crop_labels ", crop_labels)
+# print("non_crop_labels ", non_crop_labels)
+# exit()
+
 
 
 color_map = np.array([
@@ -83,6 +101,66 @@ color_map = np.array([
     [111, 37, 0],       #59
     [255, 142, 170],    #60
 ])
+
+def convert_to_crop_non_crop_labels(labels):
+    """
+    Convert the labels to crop/non-crop labels
+    """
+    # Define crop_labels (assuming crop_labels is defined elsewhere in your code)
+    crop_labels_np = np.array(crop_labels)  # Replace with actual crop labels
+    
+    # Perform the conversion
+    crop_mask = np.isin(labels, crop_labels_np)
+    labels = np.zeros_like(labels)  # Set all values to 0
+    labels[crop_mask] = 1  # Set crop labels to 1
+    
+    return labels
+
+def calculate_IoU(pred, target):
+    """
+    Calculate the Intersection over Union (IoU) for a predicted and target image.
+    The IoU is calculated as the area of intersection divided by the area of union.
+
+    Parameters:
+        pred (numpy.ndarray): The predicted image (height, width).
+        target (numpy.ndarray): The target image (height, width).
+        num_classes (int): The number of classes.
+
+    Returns:
+        iou (float): The overall IoU score.
+        iou_per_class (dict): A dictionary with class labels as keys and IoU scores as values.
+    """
+
+    num_classes = len(np.unique(target))
+    pred_cropped = pred[:target.shape[0], :target.shape[1]]
+    
+    # Calculate the overall intersection and union
+    intersection = np.logical_and(pred_cropped, target)
+    union = np.logical_or(pred_cropped, target)
+    
+    # Calculate the overall IoU
+    iou = np.sum(intersection) / np.sum(union)
+    
+    # Calculate IoU for each class
+    iou_per_class = {}
+    for cls in range(num_classes):
+        # Create binary masks for the current class
+        pred_mask = (pred_cropped == cls)
+        target_mask = (target == cls)
+
+        # Calculate the intersection and union for the current class
+        class_intersection = np.logical_and(pred_mask, target_mask)
+        class_union = np.logical_or(pred_mask, target_mask)
+
+        # Calculate the IoU for the current class
+        if np.sum(class_union) == 0:
+            class_iou = float('nan')  # Avoid division by zero
+        else:
+            class_iou = np.sum(class_intersection) / np.sum(class_union)
+        
+        iou_per_class[cls] = class_iou
+
+    return iou, iou_per_class
 
 def pad_images_to_same_size(img1, img2):
     """
@@ -164,9 +242,9 @@ def visualize_inference(output, output_path, class_dict):
 def visualize_inference_ground_truth(output, ground_truth, output_path, class_dict):
     # Get unique classes present in the image
 
-    print("pred ", np.unique(output))
+    # print("pred ", np.unique(output))
     output[output > len(color_map)] = 0
-    print("ground truth ", np.unique(ground_truth))
+    # print("ground truth ", np.unique(ground_truth))
     
     class_names = []
     for v in class_dict.values():
@@ -242,10 +320,36 @@ def inference(net, dataloader, groundtruth, device):
 def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_gt=True):
     output_path = os.path.join(output_dir, sub_region + '.png')
     if os.path.isfile(output_path):
-        return
+        print("Output file already exists, skipping inference for %s" % sub_region)
+        # return
+    
+    ground_truth_path = os.path.join(raw_dir, sub_region, 'cdl.tif')
+    with rasterio.open(ground_truth_path) as src:
+        cdl_image = src.read(1)
+
+    
+    # print("ground_truth_path: ", ground_truth_path)
+    # print("cdl_image: ", np.unique(cdl_image))
+    cdl_image_2classes = convert_to_crop_non_crop_labels(cdl_image)
+
+    # print("cdl_image_2classes: ", np.unique(cdl_image_2classes))
+    ground_truth = plt.imread(ground_truth_path)[..., :3]
+    # Save the ground truth as an image
+    # ground_truth_output_path = os.path.join(output_dir, sub_region + '_ground_truth.png')
+    # plt.imsave(ground_truth_output_path, ground_truth)
+
+    # print("ground_truth: ", np.unique(ground_truth))
+
+    print("cdl_image_2classes: ", np.unique(cdl_image_2classes), cdl_image_2classes.shape)
+    print("ground_truth: ", np.unique(ground_truth), ground_truth.shape)
+    cdl_image_color_map = color_map[cdl_image_2classes]
+    # print("cdl_vis: ", np.unique(cdl_image_color_map), cdl_image_color_map.shape)
+    # exit()
     config = read_yaml(config_file)
     device_ids = config['DEVICE']['device_id']
+    # print("device_ids: ", device_ids)
     device = get_device(device_ids, allow_cpu=False)
+    
     config['local_device_ids'] = device_ids
     model_config = config['MODEL']
     eval_config  = config['DATASETS']['eval']
@@ -266,18 +370,22 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
             batch_size=eval_config['batch_size'], shuffle=False, return_paths=True,
             num_workers=eval_config['num_workers'])
 
-    ground_truth_path = os.path.join(raw_dir, sub_region, 'cdl.tif')
-    ground_truth = plt.imread(ground_truth_path)[..., :3]
-
+ 
     net = get_model(config, device)
     checkpoint = config['CHECKPOINT']["load_from_checkpoint"]
+ 
     if checkpoint:
-        load_from_checkpoint(net, checkpoint, partial_restore=False)
+        load_from_checkpoint(net, checkpoint, partial_restore=False, device=device)
 
-    crop_types_inference = inference(net, eval_dataloader, ground_truth, device)
+    crop_types_inference = inference(net, eval_dataloader, cdl_image_2classes, device)
+
+    IoU, IoU_classes = calculate_IoU(crop_types_inference, cdl_image_2classes)
+    print("IoU: ", IoU)
+    print("IoU_classes: ", IoU_classes)
+
 
     if show_gt:
-        visualize_inference_ground_truth(crop_types_inference, ground_truth, output_path, class_dict)
+        visualize_inference_ground_truth(crop_types_inference, cdl_image_color_map, output_path, class_dict)
     else:
         visualize_inference(crop_types_inference, output_path, class_dict)
 
@@ -285,8 +393,8 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
 
 if __name__ == '__main__':
     config_file = 'configs/Arkansas/TSViT_AR23_infer.yaml'
-    raw_dir = '/data/datasets/satellite/raw_arkansas_2023/2023_all/'
-    input_dir = '/data/vuonghn/datasets/satellite/AR23_processed/pickle24x24/'
+    raw_dir = '/home/vuonghn/research/dataset/satellite/arkansas/2023_all/cdl/' # path for cdl
+    input_dir = '/home/vuonghn/research/dataset/satellite/arkansas/2023_all/pickle24x24/'
     sub_region = '17_10'
     output_dir = './output/'
     inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_gt=True)

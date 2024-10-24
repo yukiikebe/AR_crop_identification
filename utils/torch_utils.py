@@ -5,6 +5,7 @@ import sys
 
 
 def load_from_checkpoint(net, checkpoint, partial_restore=False, device=None):
+
     
     assert checkpoint is not None, "no path provided for checkpoint, value is None"
     if os.path.isdir(checkpoint):

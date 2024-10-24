@@ -7,8 +7,27 @@ import torch.utils.data
 import pickle
 import warnings
 warnings.filterwarnings("ignore")
+import yaml
+import numpy as np
 
 
+
+# Load the YAML file
+with open('data/Arkansas/cdl.yaml', 'r') as file:
+    data = yaml.safe_load(file)
+
+# Extract keys from crop_type and non_crop_type and convert them to integers
+crop_labels = list(map(int, data['crop_type'].keys()))
+non_crop_labels = list(map(int, data['non_crop_type'].keys()))
+
+def convert_to_crop_non_crop_labels(labels):
+    """
+    Convert the labels to crop/non-crop labels
+    """
+    crop_mask = torch.isin(labels, torch.tensor(crop_labels))
+    labels = torch.zeros_like(labels)  # Set all values to 0
+    labels[crop_mask] = 1  # Set crop labels to 1
+    return labels
 
 def get_distr_dataloader(paths_file, root_dir, rank, world_size, transform=None, batch_size=32, num_workers=4,
                          shuffle=True, return_paths=False):
@@ -55,21 +74,29 @@ class SatImDataset(Dataset):
             idx = idx.tolist()
 
         img_name = os.path.join(self.root_dir, self.data_paths[idx])
-        # print("img_name 0", img_name)
-
         with open(img_name, 'rb') as handle:
             sample = pickle.load(handle, encoding='latin1') # (['img', 'labels', 'doy'])
             if sample['img'].shape[-1] == 11:
                 sample['img'] = sample['img'][..., :-1]
                 sample['img'] = np.transpose(sample['img'].astype(np.float32), (0, 3, 1, 2))
-        # print("before transform" , sample['img'].shape) #torch.Size([60, 24, 24, 11])
+            original_labels = sample['labels']
         if self.transform:
             sample = self.transform(sample)  #dict_keys(['inputs', 'labels', 'seq_lengths', 'unk_masks'])
+        # Check if the labels are the same
+        # if original_labels == sample['labels']:
+        #     print("Labels are the same")
+        # else:
+        #     print("Labels have changed")
+        # print("original_labels ", original_labels.shape)
+        # print("sample['labels'] ", sample['labels'].shape)
+        # print("original_labels from pickle file", self.data_paths[idx], original_labels.squeeze())
+        # print("new_labels ", self.data_paths[idx], sample['labels'].squeeze())
+        # exit()
         # print("sample ", sample.keys())
         # print("after transform" , sample['inputs'].shape) #torch.Size([60, 24, 24, 11])
         # print(img_name , sample['inputs'].shape) #torch.Size([60, 24, 24, 11])
         # exit()
-
+        sample["labels"] = convert_to_crop_non_crop_labels(sample["labels"])
         # print("self.return_paths ", self.return_paths)
 
         # before transform (43, 10, 24, 24)

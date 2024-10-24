@@ -43,20 +43,27 @@ def evaluate_model(net, dataloaders, config, class_dict, device, lin_cls=False):
                 # print("evaluate: sample ",len(sample))
                 # print("evaluate: sample inputs ",sample[0][])
                 # exit()
+                labels = sample['labels'].to(device)
+                labels = labels.squeeze(-1)
+                print("evaluate: labels ",labels.shape)
+                # exit()
                 logits = net(sample['inputs'].to(device))
                 # print("evaluate: logits ",logits.shape)
                 logits = logits.permute(0, 2, 3, 1)
                 _, predicted = torch.max(logits.data, -1) # torch.Size([24, 24, 24])
-                # print("evaluate: predicted ",predicted.shape)
+                print("evaluate: predicted ",predicted.shape)
+                # exit()
                 ground_truth = loss_input_fn(sample, device)
                 # print("evaluate: ground_truth ",ground_truth.shape)
                 loss = loss_fn['all'](logits, ground_truth)
                 target, mask = ground_truth
                 # print("evaluate: mask ",mask.shape)
                 if mask is not None:
+                    # print("hehe")
                     predicted_all.append(predicted.view(-1)[mask.view(-1)].cpu().numpy())
                     labels_all.append(target.view(-1)[mask.view(-1)].cpu().numpy())
                 else:
+                    # print("hahaa")
                     predicted_all.append(predicted.view(-1).cpu().numpy())
                     labels_all.append(target.view(-1).cpu().numpy())
                 losses_all.append(loss.view(-1).cpu().detach().numpy())
@@ -113,8 +120,9 @@ def evaluate_model(net, dataloaders, config, class_dict, device, lin_cls=False):
     weight_decay = get_params_values(config['SOLVER'], "weight_decay", 0)
 
 
-    print("n train: ", len(dataloaders['train']))
-    print("n eval: ", len(dataloaders['eval']))
+    # print("n train: ", len(dataloaders['train']))
+    # print("n eval: ", len(dataloaders['eval']))
+    # exit()
 
 
     
@@ -122,7 +130,7 @@ def evaluate_model(net, dataloaders, config, class_dict, device, lin_cls=False):
     start_global = 1
     start_epoch = 1
     if checkpoint:
-        load_from_checkpoint(net, checkpoint, partial_restore=False)
+        load_from_checkpoint(net, checkpoint, partial_restore=False, device=device)
 
     print("current learn rate: ", lr)
 
@@ -167,7 +175,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
     parser.add_argument('--config', help='configuration (.yaml) file to use')
-    parser.add_argument('--device', default='4', type=str,
+    parser.add_argument('--device', default='0', type=str,
                          help='gpu ids to use')
     parser.add_argument('--lin', action='store_true',
                          help='train linear classifier only')

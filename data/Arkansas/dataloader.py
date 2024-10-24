@@ -46,6 +46,7 @@ def get_distr_dataloader(paths_file, root_dir, rank, world_size, transform=None,
 
 def get_dataloader(paths_file, root_dir, transform=None, batch_size=32, num_workers=4, shuffle=True,
                    return_paths=False, my_collate=None):
+
     dataset = SatImDataset(csv_file=paths_file, root_dir=root_dir, transform=transform, return_paths=return_paths)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers,
                                              collate_fn=my_collate)
@@ -99,9 +100,12 @@ class SatImDataset(Dataset):
             idx = idx.tolist()
 
         img_name = self.data_paths[idx]
+        # print("dataloader: img_name ", img_name)
 
         with open(img_name, 'rb') as handle:
             sample = pickle.load(handle, encoding='latin1') # (['img', 'labels', 'doy'])
+            # print("dataloader: pickle labels ", sample["labels"])
+
 
             if sample['img'].shape[-1] == 11:
                 sample['img'] = sample['img'][..., :-1]

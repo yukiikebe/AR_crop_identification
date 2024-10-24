@@ -18,7 +18,7 @@ MODEL:
   scale_dim: 4
 
 DATASETS:
-  classnames: "/home/vuonghn/research/code/Agriculture/fold/fold-paths/classnames.json"
+  classnames: "/home/vuonghn/research/dataset/satellite/arkansas/2023_all/classnames.json"
   train:
     # dataset: "AR24"
     # label_map:
@@ -70,5 +70,5 @@ CHECKPOINT:
   eval_steps: 10 #2000
   save_steps: 20000000000
 DEVICE: 
-  device_id: [4]
+  device_id: [0]
   # device_id: [2]
