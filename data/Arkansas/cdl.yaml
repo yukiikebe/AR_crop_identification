@@ -1,4 +1,5 @@
 crop_type:
+  "0": "Background"
   "1": "Corn"
   "2": "Cotton"
   "3": "Rice"
@@ -107,6 +108,7 @@ crop_type:
   "249": "Gourds"
   "250": "Cranberries"
   "254": "Dbl Crop Barley/Soybeans"
+
 
 non_crop_type:
   "0": "Background"
