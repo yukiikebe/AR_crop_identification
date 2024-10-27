@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from folium.plugins import Draw
 
 from data.Arkansas.Download import download_dataset
-from data.Arkansas.pre_processing import preprocess_AR
+from code.Agriculture.DeepSatModels.data.Arkansas.pre_processing_before_clean import preprocess_AR
 from train_and_eval.inference_AR24 import inference_AR
 
 

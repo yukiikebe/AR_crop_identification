@@ -11,17 +11,21 @@ import numpy as np
 import yaml
 
 # Load the YAML file
-with open('data/Arkansas/cdl.yaml', 'r') as file:
+with open('configs/Arkansas/cdl.yaml', 'r') as file:
     data = yaml.safe_load(file)
 
 # Extract keys from crop_type and non_crop_type and convert them to integers
 crop_labels = list(map(int, data['crop_type'].keys()))
 non_crop_labels = list(map(int, data['non_crop_type'].keys()))
 
+# Load the classes
 
-# print("crop_labels ", crop_labels)
-# print("non_crop_labels ", non_crop_labels)
-# exit()
+with open('configs/Arkansas/arkansas_data.yaml', 'r') as file:
+    arkansas_data = yaml.safe_load(file)
+
+arkansas_classes = arkansas_data['classes']
+print("Arkansas classes ", arkansas_classes)
+exit()
 
 def convert_to_crop_non_crop_labels(labels):
     """

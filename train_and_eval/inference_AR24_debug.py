@@ -9,7 +9,7 @@ from glob import glob
 from models import get_model
 from utils.config_files_utils import read_yaml
 from utils.torch_utils import get_device, load_from_checkpoint
-from data.Arkansas.dataloader_inference import get_dataloader as get_arkansas_dataloader
+from data.Arkansas.dataloader import get_dataloader as get_arkansas_dataloader
 from data.PASTIS24.data_transforms import PASTIS_segmentation_transform
 import pickle
 from torch.utils.data import Dataset, DataLoader
@@ -24,7 +24,7 @@ from collections import defaultdict
 
 
 # Load the YAML file
-with open('data/Arkansas/cdl.yaml', 'r') as file:
+with open('configs/Arkansas/cdl.yaml', 'r') as file:
     data = yaml.safe_load(file)
 
 # Extract keys from crop_type and non_crop_type and convert them to integers
@@ -407,9 +407,9 @@ def inference(net, dataloader, groundtruth, device):
                 # else:
                 #     predicted_all.append(predicted_sample.flatten())
                 #     labels_all.append(labels_sample_cdl.flatten())
-                if predicted_sample.shape == labels_sample_cdl.shape:
+                if predicted_sample.shape == labels_data_loader.shape:
                     predicted_all.append(predicted_sample.flatten())
-                    labels_all.append(labels_sample_cdl.flatten())
+                    labels_all.append(labels_data_loader.flatten())
     pred = np.concatenate(predicted_all)
     lab = np.concatenate(labels_all)
     # print("pred ", np.unique(pred), pred.shape)
@@ -445,7 +445,7 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
     cdl_image_2classes = convert_to_crop_non_crop_labels(cdl_image)
 
     # print("cdl_image_2classes: ", np.unique(cdl_image_2classes))
-    ground_truth = plt.imread(ground_truth_path)[..., :3]
+    # ground_truth = plt.imread(ground_truth_path)[..., :3]
     # Save the ground truth as an image
     # ground_truth_output_path = os.path.join(output_dir, sub_region + '_ground_truth.png')
     # plt.imsave(ground_truth_output_path, ground_truth)
@@ -469,7 +469,7 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
     eval_config['bidir_input'] = model_config['architecture'] == "ConvBiRNN"
     eval_config['base_dir'] = os.path.join(input_dir, sub_region)
     eval_config['paths'] = list(glob(os.path.join(eval_config['base_dir'], '*.pickle')))
-    eval_config['batch_size'] = 32
+    eval_config['batch_size'] = 64
 
     class_dict = json.load(open(config['DATASETS']['classnames'], 'r'))
     config['MODEL']['num_classes'] =  len(class_dict)
@@ -507,8 +507,8 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
 
 if __name__ == '__main__':
     config_file = 'configs/Arkansas/TSViT_AR23_infer.yaml'
-    raw_dir = '/home/vuonghn/research/dataset/satellite/arkansas/2023_all/cdl/' # path for cdl
-    input_dir = '/home/vuonghn/research/dataset/satellite/arkansas/2023_all/pickle24x24/'
+    raw_dir = '/data/datasets/satellite/raw_arkansas_2023/2023_all/' # path for cdl
+    input_dir = '/data/vuonghn/datasets/satellite/AR23_preprocessed/pickle24x24'
     sub_region = '17_10'
     output_dir = './output/'
     inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_gt=True)
