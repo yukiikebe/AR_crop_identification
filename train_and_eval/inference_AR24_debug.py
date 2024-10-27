@@ -9,7 +9,7 @@ from glob import glob
 from models import get_model
 from utils.config_files_utils import read_yaml
 from utils.torch_utils import get_device, load_from_checkpoint
-from data.Arkansas.dataloader import get_dataloader as get_arkansas_dataloader
+from data.Arkansas.dataloader_inference import get_dataloader as get_arkansas_dataloader
 from data.PASTIS24.data_transforms import PASTIS_segmentation_transform
 import pickle
 from torch.utils.data import Dataset, DataLoader
@@ -469,9 +469,10 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
     eval_config['bidir_input'] = model_config['architecture'] == "ConvBiRNN"
     eval_config['base_dir'] = os.path.join(input_dir, sub_region)
     eval_config['paths'] = list(glob(os.path.join(eval_config['base_dir'], '*.pickle')))
-    eval_config['batch_size'] = 64
+    eval_config['batch_size'] = 256
 
     class_dict = json.load(open(config['DATASETS']['classnames'], 'r'))
+
     config['MODEL']['num_classes'] =  len(class_dict)
 
     # print("eval_config['paths'] ",eval_config['paths'])
@@ -507,8 +508,8 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
 
 if __name__ == '__main__':
     config_file = 'configs/Arkansas/TSViT_AR23_infer.yaml'
-    raw_dir = '/data/datasets/satellite/raw_arkansas_2023/2023_all/' # path for cdl
-    input_dir = '/data/vuonghn/datasets/satellite/AR23_preprocessed/pickle24x24'
+    raw_dir = '/home/vuonghn/research/dataset/arkansas/2023_all' # path for cdl
+    input_dir = '/home/vuonghn/research/dataset/arkansas/AR23_preprocessed/pickle24x24'
     sub_region = '17_10'
     output_dir = './output/'
     inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_gt=True)

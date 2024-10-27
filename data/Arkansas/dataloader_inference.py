@@ -12,30 +12,29 @@ import numpy as np
 
 
 
-# Load the YAML file
-with open('configs/Arkansas/cdl.yaml', 'r') as file:
-    data = yaml.safe_load(file)
+# Load the classes for mapping the labels
+with open('configs/Arkansas/arkansas_data.yaml', 'r') as file:
+    arkansas_data = yaml.safe_load(file)
+arkansas_classes = arkansas_data['classes']
+# Create a mapping from original labels to normalized labels
+label_mapping = {}
+normalized_label = 0
 
-# Extract keys from crop_type and non_crop_type and convert them to integers
-crop_labels = list(map(int, data['crop_type'].keys()))
-non_crop_labels = list(map(int, data['non_crop_type'].keys()))
+for category in arkansas_classes.values():
+    for original_label in category.keys():
+        label_mapping[original_label] = normalized_label
+        normalized_label += 1
 
 
-# with open('configs/Arkansas/arkansas_data.yaml', 'r') as file:
-#     arkansas_data = yaml.safe_load(file)
-
-# arkansas_classes = arkansas_data['classes']
-# print("Arkansas classes ", arkansas_classes)
-# exit()
-
-def convert_to_crop_non_crop_labels(labels):
+def normalize_classes(labels):
     """
-    Convert the labels to crop/non-crop labels
+    Normalize the labels based on the provided dictionary.
     """
-    crop_mask = torch.isin(labels, torch.tensor(crop_labels))
-    labels = torch.zeros_like(labels)  # Set all values to 0
-    labels[crop_mask] = 1  # Set crop labels to 1
-    return labels
+    normalized_labels = torch.zeros_like(labels)
+    for original_label, norm_label in label_mapping.items():
+        normalized_labels[labels == original_label] = norm_label
+    return normalized_labels
+
 
 def get_distr_dataloader(paths_file, root_dir, rank, world_size, transform=None, batch_size=32, num_workers=4,
                          shuffle=True, return_paths=False):
@@ -89,52 +88,13 @@ class SatImDataset(Dataset):
                 sample['img'] = np.transpose(sample['img'].astype(np.float32), (0, 3, 1, 2))
             original_labels = sample['labels']
         if self.transform:
-            sample = self.transform(sample)  #dict_keys(['inputs', 'labels', 'seq_lengths', 'unk_masks'])
-        # Check if the labels are the same
-        # if original_labels == sample['labels']:
-        #     print("Labels are the same")
-        # else:
-        #     print("Labels have changed")
-        # print("original_labels ", original_labels.shape)
-        # print("sample['labels'] ", sample['labels'].shape)
-        # print("original_labels from pickle file", self.data_paths[idx], original_labels.squeeze())
-        # print("new_labels ", self.data_paths[idx], sample['labels'].squeeze())
-        # exit()
-        # print("sample ", sample.keys())
-        # print("after transform" , sample['inputs'].shape) #torch.Size([60, 24, 24, 11])
-        # print(img_name , sample['inputs'].shape) #torch.Size([60, 24, 24, 11])
-        # exit()
-        sample["labels"] = convert_to_crop_non_crop_labels(sample["labels"])
-        # print("self.return_paths ", self.return_paths)
+            sample = self.transform(sample)  #dict_keys
+        
+        sample["labels"] = normalize_classes(sample["labels"])
 
-        # before transform (43, 10, 24, 24)
-        # aafter transform torch.Size([60, 24, 24, 11])
+    
         
         if self.return_paths:
             return sample, img_name.split('/')[-1].split('.')[0]
         
         return sample
-
-#     def read(self, idx, abs=False):
-#         """
-#         read single dataset sample corresponding to idx (index number) without any data transform applied
-#         """
-#         if type(idx) == int:
-#             img_name = os.path.join(self.root_dir,
-#                                     self.data_paths.iloc[idx, 0])
-#         if type(idx) == str:
-#             if abs:
-#                 img_name = idx
-#             else:
-#                 img_name = os.path.join(self.root_dir, idx)
-#         with open(img_name, 'rb') as handle:
-#             sample = pickle.load(handle, encoding='latin1')
-#         return sample
-    
-    
-# def my_collate(batch):
-
-#     "Filter out sample where mask is zero everywhere"
-#     idx = [b['unk_masks'].sum(dim=(0, 1, 2)) != 0 for b in batch]
-#     batch = [b for i, b in enumerate(batch) if idx[i]]
-#     return torch.utils.data.dataloader.default_collate(batch)

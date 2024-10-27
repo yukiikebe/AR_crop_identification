@@ -20,12 +20,13 @@ non_crop_labels = list(map(int, data['non_crop_type'].keys()))
 
 # Load the classes
 
-with open('configs/Arkansas/arkansas_data.yaml', 'r') as file:
-    arkansas_data = yaml.safe_load(file)
+# with open('configs/Arkansas/arkansas_data.yaml', 'r') as file:
+#     arkansas_data = yaml.safe_load(file)
 
-arkansas_classes = arkansas_data['classes']
-print("Arkansas classes ", arkansas_classes)
-exit()
+# arkansas_classes = arkansas_data['classes']
+# print("Arkansas classes ", arkansas_classes)
+# exit()
+
 
 def convert_to_crop_non_crop_labels(labels):
     """
