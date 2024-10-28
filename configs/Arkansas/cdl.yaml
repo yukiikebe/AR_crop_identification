@@ -1,5 +1,4 @@
 crop_type:
-  0: "Background"
   1: "Corn"
   2: "Cotton"
   3: "Rice"
