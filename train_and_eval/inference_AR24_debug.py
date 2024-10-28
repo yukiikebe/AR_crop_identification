@@ -27,6 +27,8 @@ class_mappings = {key: list(value.keys()) for key, value in arkansas_classes.ite
 colormaps = [value for _, value in colormaps.items()]
 colormaps = np.array(colormaps)
 
+classes = [k for k, v in class_mappings.items()]
+
 def normalize_classes(labels):
     normalized_labels = np.zeros_like(labels)
     for new_class, original_classes in class_mappings.items():
@@ -76,9 +78,8 @@ def pad_images_to_same_size(img1, img2):
 def visualize_rgb(argmax_array, num_classes): 
     return colormaps[argmax_array]
 
-def visualize_inference(output, output_path, class_dict):
+def visualize_inference(output, output_path, class_names):
     output[output > len(colormaps)] = 0
-    class_names = [v['class_name'] for v in sorted(class_dict.values(), key=lambda x: x['remapped_id']) if v['remapped_id'] != 0 or v['class_name'] == 'Others']
     num_classes = len(class_names)
     rgb_output = visualize_rgb(output, num_classes)
     fig, ax = plt.subplots(1, 2, figsize=(9, 12), gridspec_kw={'width_ratios': [4, 1]})
@@ -97,9 +98,8 @@ def visualize_inference(output, output_path, class_dict):
     plt.show()
     fig.savefig(output_path)
 
-def visualize_inference_ground_truth(output, ground_truth, output_path, class_dict):
+def visualize_inference_ground_truth(output, ground_truth, output_path, class_names):
     output[output > len(colormaps)] = 0
-    class_names = [v['class_name'] for v in sorted(class_dict.values(), key=lambda x: x['remapped_id']) if v['remapped_id'] != 0 or v['class_name'] == 'Others']
     num_classes = len(class_names)
     rgb_output = visualize_rgb(output, num_classes)
     rgb_output, ground_truth = pad_images_to_same_size(rgb_output, ground_truth)
@@ -173,8 +173,7 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
     eval_config['base_dir'] = os.path.join(input_dir, sub_region)
     eval_config['paths'] = list(glob(os.path.join(eval_config['base_dir'], '*.pickle')))
     eval_config['batch_size'] = 256
-    class_dict = json.load(open(config['DATASETS']['classnames'], 'r'))
-    config['MODEL']['num_classes'] = len(class_dict)
+    config['MODEL']['num_classes'] = len(classes)
     eval_dataloader = get_arkansas_dataloader(
         paths=eval_config['paths'], root_dir=eval_config['base_dir'],
         transform=PASTIS_segmentation_transform(model_config, is_training=False),
@@ -191,14 +190,14 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
     print("IoU:", IoU)
     print("IoU_classes:", IoU_classes)
     if show_gt:
-        visualize_inference_ground_truth(crop_types_inference, cdl_image_color_map, output_path, class_dict)
+        visualize_inference_ground_truth(crop_types_inference, cdl_image_color_map, output_path, classes)
     else:
-        visualize_inference(crop_types_inference, output_path, class_dict)
+        visualize_inference(crop_types_inference, output_path, classes)
 
 if __name__ == '__main__':
     config_file = 'configs/Arkansas/TSViT_AR23_infer.yaml'
-    raw_dir = '/home/vuonghn/research/dataset/arkansas/2023_all'
-    input_dir = '/home/vuonghn/research/dataset/arkansas/AR23_preprocessed/pickle24x24'
+    raw_dir = '/home/vuonghn/research/code/Agriculture/arkansas/2023_all'
+    input_dir = '/home/vuonghn/research/code/Agriculture/arkansas/AR23_preprocessed/pickle24x24'
     sub_region = '17_10'
     output_dir = './output/'
     inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_gt=True)
