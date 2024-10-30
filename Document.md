@@ -3,17 +3,56 @@
 ## Download data
 
 ## Preprocessing data
-Please check file `data/Arkansas/preprocessing.py`
+Please check file `data/Arkansas/preprocessing.py`. 
+```
+cd data/Arkansas/
+python preprocessing.py
+```
+
 ### Config
 
-Please set the config path for `satellite_image_dir` and `output_dir`. The output data after running preprocessing will be stored at `output_dir`
-
-Note: Please make sure that the file `configs/Arkansas/cdl.yaml` is available.
+**Config path:** Please set the config path for `satellite_image_dir` and `output_dir`. The output data after running preprocessing will be stored at `output_dir`
 
 ```
 satellite_image_dir = "/data/datasets/satellite/raw_arkansas_2023/2023_all"
 output_dir = "/data/datasets/satellite/AR23_processed"
 ```
+
+**Config class ID:**  Please make sure that the file `configs/Arkansas/cdl.yaml` is available. This is the correctponsding the class_ID and the name of class (crop type)
+
+```
+num2class:
+  0 : "Background"
+  ... 
+  ...
+  ...
+  254 : "Dbl Crop Barley/Soybeans"
+```
+
+**Config the specipice bands and number image per moths:** Please make sure that the file `configs/Arkansas/arkansas_data.yaml` is available. 
+
+```
+sample_requirements:
+  1: 1  # January
+  2: 1  # February
+  3: 1  # March
+  4: 2  # April
+  5: 2  # May
+  6: 2  # June
+  7: 2  # July
+  8: 2  # August
+  9: 2  # September
+  10: 1 # October
+  11: 1 # November
+  12: 1  # December
+
+bands:
+    "10m": ["B2", "B3", "B4", "B8"] # 10m resolution
+    "20m": ["B5", "B6", "B7", "B8A", "B11", "B12"] # 20m resolution
+    "SCL": ["SCL"] # 20m resolution
+```
+
+
 
 The data structure for `satellite_image_dir` looks like that:
 
@@ -95,9 +134,12 @@ The structure output data:
 
 ```
 ## Training models
+### Config
+Please check file `/configs/Arkansas/TSViT_AR23_focal.yaml` to set the parameter for training model such as `num_classes`, `batch_size`, `lr`, `save_path`, `etc ..`
 * Setup the number of GPUs: 
+    * In `/TSViT_AR23_focal.yaml`, change `device_id` by the GPU_ID you would like to train. For example, if you would like to train on the GPU 1, 2, 3, 4. Simplyfy set evice_id: [1,2,3,4]
 
-
+` python train_and_eval/segmentation_training_transf.py --config configs/Arkansas/TSViT_AR23_focal.yaml`
 
 ## Evalution
 

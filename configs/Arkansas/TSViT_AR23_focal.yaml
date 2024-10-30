@@ -29,14 +29,14 @@ DATASETS:
     dataset: "AR23_all"
     label_map:
     max_seq_len: 20
-    batch_size: 768
+    batch_size: 16
     extra_data:
     num_workers: 4
   eval:
     dataset: "AR23_all"
     label_map:
     max_seq_len: 20
-    batch_size: 768
+    batch_size: 16
     extra_data:
     num_workers: 4
 
@@ -44,7 +44,7 @@ DATASETS:
     dataset: "AR23_all"
     label_map:
     max_seq_len: 20
-    batch_size: 48
+    batch_size: 16
     extra_data:
     num_workers: 4
 
@@ -66,9 +66,9 @@ SOLVER:
 CHECKPOINT:
   load_from_checkpoint: #'models/saved_models/AR23_all_focal/best.pth'
   partial_restore: False
-  save_path: 'models/saved_models/AR23_crop_noncrop_focal'
+  save_path: 'models/saved_models/debug/'
   train_metrics_steps: 250
   eval_steps: 250
   save_steps: 1000
 DEVICE: 
-  device_id: [5,6]
+  device_id: [0]

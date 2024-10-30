@@ -1,14 +1,12 @@
 import sys
 import os
-sys.path.insert(0, os.getcwd())
 import argparse
+sys.path.insert(0, os.getcwd())
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from utils.lr_scheduler import build_scheduler
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
-import json
 
 from models import get_model
 from utils.config_files_utils import read_yaml, copy_yaml, get_params_values
@@ -20,12 +18,10 @@ from metrics.loss_functions import get_loss
 from utils.summaries import write_mean_summaries, write_class_summaries
 from data import get_loss_data_input
 
-
 def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
 
     def train_step(net, sample, loss_fn, optimizer, device, loss_input_fn):
         optimizer.zero_grad()
-        # print(sample['inputs'].shape)
         outputs = net(sample['inputs'].to(device))
         outputs = outputs.permute(0, 2, 3, 1)
         ground_truth = loss_input_fn(sample, device)
@@ -42,22 +38,12 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
         net.eval()
         with torch.no_grad():
             for step, sample in enumerate(evalloader):
-                # print("evaluate: sample ",sample.keys())
-
-                # sample_inputs = sample['inputs'].to(device) # torch.Size([24, 60, 24, 24, 11])
-                # print("evaluate: sample ",len(sample))
-                # print("evaluate: sample inputs ",sample[0][])
-                # exit()
                 logits = net(sample['inputs'].to(device))
-                # print("evaluate: logits ",logits.shape)
                 logits = logits.permute(0, 2, 3, 1)
-                _, predicted = torch.max(logits.data, -1) # torch.Size([24, 24, 24])
-                # print("evaluate: predicted ",predicted.shape)
+                _, predicted = torch.max(logits.data, -1)
                 ground_truth = loss_input_fn(sample, device)
-                # print("evaluate: ground_truth ",ground_truth.shape)
                 loss = loss_fn['all'](logits, ground_truth)
                 target, mask = ground_truth
-                # print("evaluate: mask ",mask.shape)
                 if mask is not None:
                     predicted_all.append(predicted.view(-1)[mask.view(-1)].cpu().numpy())
                     labels_all.append(target.view(-1)[mask.view(-1)].cpu().numpy())
@@ -66,11 +52,6 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                     labels_all.append(target.view(-1).cpu().numpy())
                 losses_all.append(loss.view(-1).cpu().detach().numpy())
 
-                if step > 1000:
-                    break
-
-        print("finished iterating over dataset after step %d" % step)
-        print("calculating metrics...")
         predicted_classes = np.concatenate(predicted_all)
         target_classes = np.concatenate(labels_all)
         losses = np.concatenate(losses_all)
@@ -84,14 +65,10 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
 
         un_labels, class_loss = get_per_class_loss(losses, target_classes, unk_masks=None)
 
-        print(
-            "-----------------------------------------------------------------------------------------------------------------------------------------------------------------")
         print("Mean (micro) Evaluation metrics (micro/macro), loss: %.7f, iou: %.4f/%.4f, accuracy: %.4f/%.4f, "
               "precision: %.4f/%.4f, recall: %.4f/%.4f, F1: %.4f/%.4f, unique pred labels: %s" %
               (losses.mean(), micro_IOU, macro_IOU, micro_acc, macro_acc, micro_precision, macro_precision,
                micro_recall, macro_recall, micro_F1, macro_F1, np.unique(predicted_classes)))
-        print(
-            "-----------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
         return (un_labels,
                 {"macro": {"Loss": losses.mean(), "Accuracy": macro_acc, "Precision": macro_precision,
@@ -99,11 +76,9 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                  "micro": {"Loss": losses.mean(), "Accuracy": micro_acc, "Precision": micro_precision,
                            "Recall": micro_recall, "F1": micro_F1, "IOU": micro_IOU},
                  "class": {"Loss": class_loss, "Accuracy": class_acc, "Precision": class_precision,
-                           "Recall": class_recall,
-                           "F1": class_F1, "IOU": class_IOU}}
+                           "Recall": class_recall, "F1": class_F1, "IOU": class_IOU}}
                 )
 
-    #------------------------------------------------------------------------------------------------------------------#
     num_classes = config['MODEL']['num_classes']
     num_epochs = config['SOLVER']['num_epochs']
     lr = float(config['SOLVER']['lr_base'])
@@ -142,15 +117,12 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
 
     optimizer.zero_grad()
 
-    #scheduler = build_scheduler(config, optimizer, num_steps_train)
-
     writer = SummaryWriter(save_path)
 
     BEST_IOU = 0
     net.train()
-    for epoch in range(start_epoch, start_epoch + num_epochs):  # loop over the dataset multiple times
+    for epoch in range(start_epoch, start_epoch + num_epochs):
         for step, (sample, paths) in enumerate(dataloaders['train']):
-            # print("sample inputs shape: ", sample["labels"].shape, np.unique(sample["labels"]))
             abs_step = start_global + (epoch - start_epoch) * num_steps_train + step
             logits, ground_truth, loss = train_step(net, sample, loss_fn, optimizer, device, loss_input_fn=loss_input_fn)
             if len(ground_truth) == 2:
@@ -158,7 +130,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
             else:
                 labels = ground_truth
                 unk_masks = None
-            # print batch statistics ----------------------------------------------------------------------------------#
+
             if abs_step % train_metrics_steps == 0:
                 logits = logits.permute(0, 3, 1, 2)
                 batch_metrics = get_mean_metrics(
@@ -167,7 +139,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                 write_mean_summaries(writer, batch_metrics, abs_step, mode="train", optimizer=optimizer)
                 print("abs_step: %d, train_metrics_steps: %d, epoch: %d, step: %5d, loss: %.7f, batch_iou: %.4f, batch accuracy: %.4f, batch precision: %.4f, "
                       "batch recall: %.4f, batch F1: %.4f" %
-                      (abs_step,train_metrics_steps, epoch, step + 1, loss, batch_metrics['IOU'], batch_metrics['Accuracy'], batch_metrics['Precision'],
+                      (abs_step, train_metrics_steps, epoch, step + 1, loss, batch_metrics['IOU'], batch_metrics['Accuracy'], batch_metrics['Precision'],
                        batch_metrics['Recall'], batch_metrics['F1']))
 
             if abs_step % save_steps == 0:
@@ -176,7 +148,6 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                 else:
                     torch.save(net.state_dict(), "%s/%depoch_%dstep.pth" % (save_path, epoch, abs_step))
 
-            # evaluate model ------------------------------------------------------------------------------------------#
             if abs_step % eval_steps == 0:
                 eval_metrics = evaluate(net, dataloaders['eval'], loss_fn, config)
                 if eval_metrics[1]['macro']['IOU'] > BEST_IOU:
@@ -186,29 +157,22 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                         torch.save(net.state_dict(), "%s/best.pth" % (save_path))
                     BEST_IOU = eval_metrics[1]['macro']['IOU']
 
-
                 write_mean_summaries(writer, eval_metrics[1]['micro'], abs_step, mode="eval_micro", optimizer=None)
                 write_mean_summaries(writer, eval_metrics[1]['macro'], abs_step, mode="eval_macro", optimizer=None)
                 write_class_summaries(writer, [eval_metrics[0], eval_metrics[1]['class']], abs_step, mode="eval",
                                       optimizer=None)
                 net.train()
 
-        #scheduler.step_update(abs_step)
-
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
     parser.add_argument('--config', help='configuration (.yaml) file to use')
-    parser.add_argument('--device', default='5,6', type=str,
-                         help='gpu ids to use')
-    parser.add_argument('--lin', action='store_true',
-                         help='train linear classifier only')
+    parser.add_argument('--device', default='0', type=str, help='gpu ids to use')
+    parser.add_argument('--lin', action='store_true', help='train linear classifier only')
 
     args = parser.parse_args()
     config_file = args.config
 
-    print(args.device)
     device_ids = [int(d) for d in args.device.split(',')]
     lin_cls = args.lin
 
@@ -217,10 +181,7 @@ if __name__ == "__main__":
     config = read_yaml(config_file)
     config['local_device_ids'] = device_ids
 
-    num_classes = 2 #len(json.load(open(config['DATASETS']['classnames'], 'r')))
-    # print("config['MODEL']['num_classes'] ",config['MODEL']['num_classes'])
-    # print("num_classes  ",num_classes)
-    # exit()
+    num_classes = 2
     config['MODEL']['num_classes'] = num_classes
 
     dataloaders = get_dataloaders(config)
@@ -228,8 +189,3 @@ if __name__ == "__main__":
     net = get_model(config, device)
 
     train_and_evaluate(net, dataloaders, config, device)
-
-
-# python train_and_eval/segmentation_training_transf.py --config configs/PASTIS24/TSViT_fold1.yaml
-
-# python train_and_eval/segmentation_training_transf.py --config configs/Arkansas/TSViT.yaml

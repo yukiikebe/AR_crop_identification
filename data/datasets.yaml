@@ -9,10 +9,10 @@ T31TFM_1618:
     paths_eval: ".../eval_paths.csv"
 
 AR23_all:
-    basedir: "/home/vuonghn/research/dataset/satellite/arkansas/2023_all/"
-    paths_train: "/home/vuonghn/research/code/Agriculture/fold/fold-paths/val_data.csv"
-    paths_eval: "/home/vuonghn/research/code/Agriculture/fold/fold-paths/val_data.csv"
-    paths_test: "/home/vuonghn/research/code/Agriculture/fold/fold-paths/test_data.csv"
+    basedir: "/home/vuonghn/research/code/Agriculture/arkansas/AR23_preprocessed/"
+    paths_train: "/home/vuonghn/research/code/Agriculture/arkansas/fold-paths/train_data.csv"
+    paths_eval: "/home/vuonghn/research/code/Agriculture/arkansas/fold-paths/val_data.csv"
+    paths_test: "/home/vuonghn/research/code/Agriculture/arkansas/fold-paths/train_data.csv"
 
 AR23:
     basedir: "/home/khoavo/Desktop/workplace/satelite/AR23"
