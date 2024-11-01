@@ -150,15 +150,42 @@ The structure output data:
 ## Training models
 ### Config
 Please check file `/configs/Arkansas/TSViT_AR23_focal.yaml` to set the parameter for training model such as `num_classes`, `batch_size`, `lr`, `save_path`, `etc ..`
-* Setup the number of GPUs: 
-    * In `/TSViT_AR23_focal.yaml`, change `device_id` by the GPU_ID you would like to train. For example, if you would like to train on the GPU 1, 2, 3, 4. Simplyfy set evice_id: [1,2,3,4]
 
-` python train_and_eval/segmentation_training_transf.py --config configs/Arkansas/TSViT_AR23_focal.yaml`
+Setup the number of GPUs:  In `/TSViT_AR23_focal.yaml`, change `device_id` by the GPU_ID you would like to train. For example, if you would like to train on the GPU 1, 2, 3, 4. Simplyfy set evice_id: [1,2,3,4]
+
+Set up the class: Just configure the number of classes you would like to train and merge in `configs/Arkansas/arkansas_data.yaml`. For example, below, this trains on 2 classes, and for each class, we have a list of crops.
+
+
+```
+classes:
+  0:
+    0: "Background"
+    59: "Sod/Grass Seed"
+    ...
+    62: "Pasture/Grass"
+
+  1: 
+    1: "Corn"
+    2: "Cotton"
+    ...
+    10: "Pea
+```
+To train the model, please run: `python train_and_eval/segmentation_training_transf.py --config configs/Arkansas/TSViT_AR23_focal.yaml`
 
 ## Evalution
 
+Configure the `load_from_checkpoint` in the file `configs/Arkansas/TSViT_AR23_infer.yaml`. Example:
+
+```
+CHECKPOINT:
+  load_from_checkpoint: './models/saved_models/
+```
+To validation the model, please run: 
 `python train_and_eval/validation_AR24.py --config configs/Arkansas/TSViT_AR23_infer.yaml`
 
+Note: Due to the padding in data preprocessing, the metric may differ when compared to the true value.
+
 ## Inference and Visualzation
+After training and obtaining the checkpoint, we can visualize the result with this command:
 
 `python train_and_eval/inference_AR24.py`
