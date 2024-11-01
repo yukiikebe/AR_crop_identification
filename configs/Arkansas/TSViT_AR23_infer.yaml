@@ -18,6 +18,7 @@ MODEL:
   scale_dim: 4
 
 DATASETS:
+  class_config: "configs/Arkansas/arkansas_data.yaml"
   train:
     dataset: "AR23_all"
     label_map:

@@ -18,7 +18,7 @@ MODEL:
   scale_dim: 4
 
 DATASETS:
-  classnames: "/data/datasets/satellite/AR23_all/classnames.json"
+  class_config: "configs/Arkansas/arkansas_data.yaml"
   train:
     # dataset: "AR24"
     # label_map:
