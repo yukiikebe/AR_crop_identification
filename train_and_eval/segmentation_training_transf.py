@@ -167,7 +167,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
     parser.add_argument('--config', help='configuration (.yaml) file to use')
-    parser.add_argument('--device', default='0', type=str, help='gpu ids to use')
+    parser.add_argument('--device', default='0,1', type=str, help='gpu ids to use')
     parser.add_argument('--lin', action='store_true', help='train linear classifier only')
 
     args = parser.parse_args()
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     config = read_yaml(config_file)
     config['local_device_ids'] = device_ids
 
-    num_classes = 2
+    num_classes = 53
     config['MODEL']['num_classes'] = num_classes
 
     dataloaders = get_dataloaders(config)
