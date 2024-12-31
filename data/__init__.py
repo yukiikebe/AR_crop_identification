@@ -7,6 +7,7 @@ from data.PASTIS24.dataloader import get_dataloader as get_pastis_dataloader
 
 from data.PASTIS24.data_transforms import PASTIS_segmentation_transform
 from data.Arkansas.dataloader import get_dataloader as get_arkansas_dataloader
+from data.California.dataloader import get_dataloader as get_california_dataloader
 
 from utils.config_files_utils import get_params_values, read_yaml
 
@@ -44,6 +45,12 @@ def get_dataloaders(config):
             paths_file = train_config['paths'], root_dir=train_config['base_dir'],
             transform=PASTIS_segmentation_transform(model_config, is_training=True),
             batch_size=train_config['batch_size'], shuffle=True, return_paths=True, num_workers=train_config['num_workers'])
+    elif 'Cal' in train_config['dataset']:
+        dataloaders['train'] = get_california_dataloader(
+            paths_file = train_config['paths'], root_dir=train_config['base_dir'],
+            transform=PASTIS_segmentation_transform(model_config, is_training=True),
+            batch_size=train_config['batch_size'], shuffle=True, return_paths=True, num_workers=train_config['num_workers'])
+        
     else:
         dataloaders['train'] = get_france_dataloader(
             paths_file=train_config['paths'], root_dir=train_config['base_dir'],
@@ -69,15 +76,13 @@ def get_dataloaders(config):
             transform=PASTIS_segmentation_transform(model_config, is_training=False),
             batch_size=eval_config['batch_size'], shuffle=False, return_paths=False,
             num_workers=eval_config['num_workers'])
+    elif 'Cal' in eval_config['dataset']:
+        dataloaders['eval'] = get_california_dataloader(
+            paths_file=eval_config['paths'], root_dir=eval_config['base_dir'],
+            transform=PASTIS_segmentation_transform(model_config, is_training=False),
+            batch_size=eval_config['batch_size'], shuffle=False, return_paths=False,
+            num_workers=eval_config['num_workers'])
         
-        # print("train_config ", train_config)
-        # print("eval_config  ", eval_config)
-        # exit()
-
-        # dataloaders['eval'] = get_arkansas_dataloader(
-        #     paths_file = train_config['paths'], root_dir=train_config['base_dir'],
-        #     transform=PASTIS_segmentation_transform(model_config, is_training=False),
-        #     batch_size=train_config['batch_size'], shuffle=True, num_workers=train_config['num_workers'])
 
     else:
         dataloaders['eval'] = get_france_dataloader(
