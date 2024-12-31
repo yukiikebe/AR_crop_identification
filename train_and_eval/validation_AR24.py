@@ -99,7 +99,7 @@ def evaluate_model(net, dataloaders, config, device, lin_cls=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Model Evaluation')
     parser.add_argument('--config', help='configuration (.yaml) file to use')
-    parser.add_argument('--device', default='0', type=str, help='gpu ids to use')
+    parser.add_argument('--device', default='0,1', type=str, help='gpu ids to use')
     parser.add_argument('--lin', action='store_true', help='train linear classifier only')
     args = parser.parse_args()
     
@@ -111,6 +111,7 @@ if __name__ == "__main__":
     with open(config['DATASETS']['class_config'], 'r') as file:
         arkansas_data = yaml.safe_load(file)
     config['MODEL']['num_classes'] = len(arkansas_data['classes'])
+    print(len(arkansas_data['classes']),"&&&&&&&&&&&&&&&&&&&&&&&&&&&&7")
 
     dataloaders = get_dataloaders(config)
     net = get_model(config, device)
