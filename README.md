@@ -1,191 +1,80 @@
-# Crop type segmentation
+# DeepSatModels — Arkansas Crop‑ID
 
-## Environment Setup
+Training + deployment code for Arkansas crop identification from Sentinel‑2 time series.
 
-1. **Creating the Environment**: Navigate to the code directory in your terminal and create the environment using the provided `.yml` file by executing:
+## Installation
 
-        conda env create -f deepsatmodels_env.yml
+Recommended: Conda (Python 3.10+).
 
-2. **Activating the Environment**: Activate the newly created environment with:
-
-        source activate deepsatmodels
-
-3. **PyTorch Installation**: Install the required version of PyTorch along with torchvision and torchaudio by running:
-
-        conda install pytorch torchvision torchaudio cudatoolkit=10.1 -c pytorch-nightly
-## Download data
-`python /data/Arkansas/Download.py`
-
-## Preprocessing data
-Please check file `data/Arkansas/preprocessing.py`. 
-```
-cd data/Arkansas/
-python preprocessing.py
+```bash
+conda env create -f deepsatmodels_env.yml
+conda activate deepsatmodels
+pip install "numpy<2"  # chainer/torchfcn deps break on NumPy 2.x
 ```
 
-### Config
-
-**Config path:** Please set the config path for `satellite_image_dir` and `output_dir`. The output data after running preprocessing will be stored at `output_dir`
-
-```
-satellite_image_dir = "/data/datasets/satellite/raw_arkansas_2023/2023_all"
-output_dir = "/data/datasets/satellite/AR23_processed"
+For serving + UI:
+```bash
+pip install fastapi uvicorn streamlit streamlit-folium folium requests pillow
 ```
 
-**Config class ID:**  Please make sure that the file `configs/Arkansas/cdl.yaml` is available. This is the correctponsding the class_ID and the name of class (crop type)
+## Model checkpoints (6–11 month)
 
-```
-num2class:
-  0 : "Background"
-  ... 
-  ...
-  ...
-  254 : "Dbl Crop Barley/Soybeans"
-```
+Expected layout (not tracked by git; see `.gitignore`):
+- `models/saved_models/AR23_focal_06mo/{config_file.yaml,best.pth}`
+- `models/saved_models/AR23_focal_07mo/{config_file.yaml,best.pth}`
+- `models/saved_models/AR23_focal_08mo/{config_file.yaml,best.pth}`
+- `models/saved_models/AR23_focal_09mo/{config_file.yaml,best.pth}`
+- `models/saved_models/AR23_focal_10mo/{config_file.yaml,best.pth}`
+- `models/saved_models/AR23_focal_11mo/{config_file.yaml,best.pth}`
 
-**Config the specipice bands and number image per moths:** Please make sure that the file `configs/Arkansas/arkansas_data.yaml` is available. 
+Deployment rule: if you have data through calendar month `M`, select `model_month = clamp(M, 6..11)`.
 
-```
-sample_requirements:
-  1: 1  # January
-  2: 1  # February
-  3: 1  # March
-  4: 2  # April
-  5: 2  # May
-  6: 2  # June
-  7: 2  # July
-  8: 2  # August
-  9: 2  # September
-  10: 1 # October
-  11: 1 # November
-  12: 1  # December
+## Train
 
-bands:
-    "10m": ["B2", "B3", "B4", "B8"] # 10m resolution
-    "20m": ["B5", "B6", "B7", "B8A", "B11", "B12"] # 20m resolution
-    "SCL": ["SCL"] # 20m resolution
+Example (11‑month model):
+```bash
+python train_and_eval/segmentation_training_transf.py --config configs/Arkansas/TSViT_AR23_11mo_focal.yaml --device 0
 ```
 
+## Deployment (monthly automation)
 
+`ar_deploy.py` downloads raw tiles for a month from Google Earth Engine and (if `month >= 6`) runs the corresponding model and writes GeoTIFF predictions.
 
-The data structure for `satellite_image_dir` looks like that:
-
-```
-├── 0_0
-    ├── 2023-01-03
-        ├── 10m_rgb_2023-01-03.tif
-        ├── B11_2023-01-03.tif
-        ├── B12_2023-01-03.tif
-        ├── B2_2023-01-03.tif
-        ├── B3_2023-01-03.tif
-        ├── B4_2023-01-03.tif
-        ├── B5_2023-01-03.tif
-        ├── B6_2023-01-03.tif
-        ├── B7_2023-01-03.tif
-        ├── B8_2023-01-03.tif
-        ├── B8A_2023-01-03.tif
-        ├── SCL_2023-01-03.tif
-        ├── TCI_2023-01-03.jpg
-        ├── TCI_B_2023-01-03.tif
-        ├── TCI_G_2023-01-03.tif
-        └── TCI_R_2023-01-03.tif
-    ├── ...
-    ├── 2023-12-27
-    └── cdl.tif
-├── 0_1
-├── ...
-└── 19_19
-
+Manual run:
+```bash
+python ar_deploy.py run --project <gcp-project> --data-root /mnt/vhvkhoa_ssd/datasets --year 2025 --month 6
 ```
 
-### Visualize
-
-The function `visual_crop_distribution` will be used for the feature Visualize crop distribution. After calling this function, it will visualize crop distribution.
-
-* `visual_crop_distribution(satellite_image_dir, output_dir)`
-![Crop Distribution](doc/crop_distribution.png)
-### Preprocessing data
-
-The function `preprocess_satellite` processes large data. The input is the `satellite_image_dir` path as structured above. The output will be tiled data saved in a pickle file.
-
-
-* For each pickle file, the format is:
-    ```
-    pickle_data = {
-        'img': series_image, 
-        'doy': doys,
-        'labels': np.array(labels, dtype=np.uint8),
-    }
-    ```
-* The API looks like `preprocess_satellite(satellite_image_dir, pickle_dir, num_cpus=8)`. Please change `num_cpus` based on your machine's resources.
-
-### Split data
-After run preprocessing data, the processed data will be stored, we need to split to `train/val`, we use random sampling based on the region. The figure bellow show the data for Arkansas region, the blue for validation and the green for training data. 
-
-* Noted: In the future, we can change the way to do sampling data    
-    ![grid_image](doc/grid_image.png)
-
-Here is the log after running visual data and preprocessing data.
-![preprocessing](doc/preprocessing.png)
-
-The structure output data:
-
+Cron (03:00 on day 1 each month; downloads previous month automatically):
+```bash
+0 3 1 * * /path/to/miniconda3/envs/deepsatmodels/bin/python /path/to/DeepSatModels/ar_deploy.py monthly --project <gcp-project> --data-root /mnt/vhvkhoa_ssd/datasets >> /mnt/vhvkhoa_ssd/datasets/ar_monthly.log 2>&1
 ```
-├── crop_distribution.png
-├── fold-paths
-    ├── train_sub_data.csv
-    └── val_sub_data.csv
-└── pickle24x24
-    ├── 0_0
-        ├── 984_744.pickle
-        ├── ...
-        ├── ...
-        ├── ...
-        └── 984_840.pickle
-    ├── 0_1
-    ├── ...
-    └── 19_19
 
+First-time EE auth (interactive): add `--auth` once when running `ar_deploy.py download/run/monthly`, then remove it for cron.
+
+## Prediction server + client queries
+
+Serve **precomputed** predictions:
+```bash
+export DEEPSAT_AR_PRED_ROOT=/mnt/vhvkhoa_ssd/datasets
+uvicorn ar_pred_api:app --host 0.0.0.0 --port 8001
 ```
-## Training models
-### Config
-Please check file `/configs/Arkansas/TSViT_AR23_focal.yaml` to set the parameter for training model such as `num_classes`, `batch_size`, `lr`, `save_path`, `etc ..`
 
-Setup the number of GPUs:  In `/TSViT_AR23_focal.yaml`, change `device_id` by the GPU_ID you would like to train. For example, if you would like to train on the GPU 1, 2, 3, 4. Simplyfy set evice_id: [1,2,3,4]
-
-Set up the class: Just configure the number of classes you would like to train and merge in `configs/Arkansas/arkansas_data.yaml`. For example, below, this trains on 2 classes, and for each class, we have a list of crops.
-
-
+Optional Streamlit client (year/month/bbox only):
+```bash
+export DEEPSAT_AR_PRED_API_URL=http://localhost:8001
+streamlit run app_AR_deploy.py
 ```
-classes:
-  0:
-    0: "Background"
-    59: "Sod/Grass Seed"
-    ...
-    62: "Pasture/Grass"
 
-  1: 
-    1: "Corn"
-    2: "Cotton"
-    ...
-    10: "Pea
+Map tiles: set `DEEPSAT_MAPBOX_TOKEN` (or `MAPBOX_TOKEN`) to use Mapbox; otherwise the apps fall back to OpenStreetMap tiles.
+
+## CDL download (labels) for a year
+
+Writes `cdl.tif` into each meta‑patch under your raw root:
+```bash
+cd data/Arkansas
+Rscript get_cdl.r --base-dir /mnt/vhvkhoa_ssd/datasets/AR_2025_raw --year 2025
 ```
-To train the model, please run: `python train_and_eval/segmentation_training_transf.py --config configs/Arkansas/TSViT_AR23_focal.yaml`
 
-## Evalution
+Requires an R install with packages `terra`, `sf`, and `CropScapeR`.
 
-Configure the `load_from_checkpoint` in the file `configs/Arkansas/TSViT_AR23_infer.yaml`. Example:
-
-```
-CHECKPOINT:
-  load_from_checkpoint: './models/saved_models/
-```
-To validation the model, please run: 
-`python train_and_eval/validation_AR24.py --config configs/Arkansas/TSViT_AR23_infer.yaml`
-
-Note: Due to the padding in data preprocessing, the metric may differ when compared to the true value.
-
-## Inference and Visualzation
-After training and obtaining the checkpoint, we can visualize the result with this command:
-
-`python train_and_eval/inference_AR24.py`

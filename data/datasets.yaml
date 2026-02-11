@@ -8,28 +8,17 @@ T31TFM_1618:
     paths_train: ".../train_paths.csv"
     paths_eval: ".../eval_paths.csv"
 
-AR23_all:
-    basedir: "/home/vuonghn/research/code/Agriculture/arkansas/AR23_preprocessed/"
-    paths_train: "/home/vuonghn/research/code/Agriculture/arkansas/fold-paths/train_data.csv"
-    paths_eval: "/home/vuonghn/research/code/Agriculture/arkansas/fold-paths/val_data.csv"
-    paths_test: "/home/vuonghn/research/code/Agriculture/arkansas/fold-paths/train_data.csv"
-
 AR23:
-    basedir: "/home/khoavo/Desktop/workplace/satelite/AR23"
-    paths_train: "/home/khoavo/Desktop/workplace/satelite/AR23/fold-paths/train_data.csv"
-    paths_eval: "/home/khoavo/Desktop/workplace/satelite/AR23/fold-paths/val_data.csv"
-    paths_test: "/home/khoavo/Desktop/workplace/satelite/AR23/fold-paths/test_data.csv"
+    basedir: "/mnt/vhvkhoa_ssd/datasets/AR_2023_bframe2"
+    paths_train: "data/Arkansas/tiles_train_val_AR.csv"
+    paths_eval: "data/Arkansas/tiles_train_val_AR.csv"
+    paths_test: "data/Arkansas/tiles_train_val_AR.csv"
 
-AR24:
-    basedir: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24"
-    paths_train: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24/fold-paths/train_data.csv"
-    paths_eval: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24/fold-paths/val_data.csv"
-    paths_test: "/home/vuonghn/research/code/Agriculture/DeepSatModels/datasets/AR24/fold-paths/test_data.csv"
 Cal:
-    basedir: '/mnt/data/mzarvani/new_out/out/'
-    paths_train: "/mnt/data/mzarvani/new_out/out/fold-paths/train_sub_data.csv"
-    paths_eval: "/mnt/data/mzarvani/new_out/out/fold-paths/val_sub_data.csv"
-    paths_test: "/mnt/data/mzarvani/new_out/out/fold-paths/val_sub_data.csv"
+    basedir: '/mnt/ssd_8tb/CA_2022_bframe2'
+    paths_train: "data/California/tiles_train_val.csv"
+    paths_eval: "data/California/tiles_train_val.csv"
+    paths_test: "data/California/tiles_train_val.csv"
 
 # PASTIS24 benchmark -------------------------------------------------------------------------------------------------
 PASTIS24_fold1:

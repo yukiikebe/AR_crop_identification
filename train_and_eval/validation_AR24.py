@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.insert(0, os.getcwd())
 
-import json
+import pickle as pkl
 from tqdm import tqdm
 import argparse
 import yaml
@@ -16,7 +16,7 @@ from utils.config_files_utils import read_yaml, copy_yaml, get_params_values
 from utils.torch_utils import get_device, get_net_trainable_params, load_from_checkpoint
 from data import get_dataloaders, get_loss_data_input
 from metrics.torch_metrics import get_mean_metrics
-from metrics.numpy_metrics import get_classification_metrics, get_per_class_loss
+from metrics.numpy_metrics import get_classification_metrics, get_per_class_loss, get_accuracy_topk, get_accuracy_per_class
 from metrics.loss_functions import get_loss
 from utils.summaries import write_mean_summaries, write_class_summaries
 
@@ -24,6 +24,7 @@ def evaluate_model(net, dataloaders, config, device, lin_cls=False):
     def evaluate(net, evalloader, loss_fn, config):
         num_classes = config['MODEL']['num_classes']
         predicted_all, labels_all, losses_all = [], [], []
+        logits_all = []
         net.eval()
         
         with torch.no_grad():
@@ -37,30 +38,46 @@ def evaluate_model(net, dataloaders, config, device, lin_cls=False):
                 target, mask = ground_truth
 
                 if mask is not None:
+                    logits_all.append(logits.reshape(-1, num_classes)[mask.view(-1)].cpu().numpy())
                     predicted_all.append(predicted.view(-1)[mask.view(-1)].cpu().numpy())
                     labels_all.append(target.view(-1)[mask.view(-1)].cpu().numpy())
                 else:
+                    logits_all.append(logits.cpu().numpy().reshape(-1, num_classes))
                     predicted_all.append(predicted.view(-1).cpu().numpy())
                     labels_all.append(target.view(-1).cpu().numpy())
                 losses_all.append(loss.view(-1).cpu().detach().numpy())
 
+        logits_all = np.concatenate(logits_all, axis=0)
         predicted_classes = np.concatenate(predicted_all)
-        target_classes = np.concatenate(labels_all)
+        target_classes = np.concatenate(labels_all).astype(np.int64)
         losses = np.concatenate(losses_all)
 
         eval_metrics = get_classification_metrics(
             predicted=predicted_classes, labels=target_classes, n_classes=num_classes
         )
 
+        topk_accuracies = get_accuracy_topk(logits_all, target_classes, top_k=5)
+        for k, v in topk_accuracies.items():
+            print(f"{k} Accuracy: {v:.4f}")
+
+        topk_percls_accuracies = get_accuracy_per_class(logits_all, target_classes, top_k=5)
+        for cls_name, accs in topk_percls_accuracies.items():
+            print('-' * 50)
+            print(f"{cls_name} Accuracy: ")
+            for k, v in accs.items():
+                print(f"{k} Accuracy: {v:.4f}")
+        with open('topk_per_cls_accuracies.pkl', 'wb') as f:
+            pkl.dump(topk_percls_accuracies, f)
+
         un_labels, class_loss = get_per_class_loss(losses, target_classes)
         micro_acc, micro_precision, micro_recall, micro_F1, micro_IOU = eval_metrics['micro']
         macro_acc, macro_precision, macro_recall, macro_F1, macro_IOU = eval_metrics['macro']
-        
+
         print("Mean (micro) Evaluation metrics:")
         print(f"Loss: {losses.mean():.7f}, IOU: {micro_IOU:.4f}/{macro_IOU:.4f}, "
               f"Accuracy: {micro_acc:.4f}/{macro_acc:.4f}, Precision: {micro_precision:.4f}/{macro_precision:.4f}, "
               f"Recall: {micro_recall:.4f}/{macro_recall:.4f}, F1: {micro_F1:.4f}/{macro_F1:.4f}")
-        
+
         return un_labels, {
             "macro": {
                 "Loss": losses.mean(), "Accuracy": macro_acc, "Precision": macro_precision,
@@ -95,6 +112,7 @@ def evaluate_model(net, dataloaders, config, device, lin_cls=False):
     
     eval_metrics = evaluate(net, dataloaders['eval'], loss_fn, config)
     print("IoU per class:", eval_metrics[1]['class']['IOU'])
+    print("Acc per class:", eval_metrics[1]['class']['Accuracy'])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Model Evaluation')
@@ -110,8 +128,7 @@ if __name__ == "__main__":
 
     with open(config['DATASETS']['class_config'], 'r') as file:
         arkansas_data = yaml.safe_load(file)
-    config['MODEL']['num_classes'] = len(arkansas_data['classes'])
-    print(len(arkansas_data['classes']),"&&&&&&&&&&&&&&&&&&&&&&&&&&&&7")
+    config['MODEL']['num_classes'] = 26
 
     dataloaders = get_dataloaders(config)
     net = get_model(config, device)

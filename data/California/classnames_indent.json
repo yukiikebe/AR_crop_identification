@@ -1,0 +1,272 @@
+{
+    "0": {
+        "remapped_id": 1,
+        "count": 4720339409,
+        "class_name": "Unknown"
+    },
+    "3": {
+        "remapped_id": 2,
+        "count": 36787087,
+        "class_name": "Land not cropped the current or previous crop season, but cropped within the past three years"
+    },
+    "6": {
+        "remapped_id": 3,
+        "count": 34929719,
+        "class_name": "Mixed pasture"
+    },
+    "8": {
+        "remapped_id": 4,
+        "count": 24876912,
+        "class_name": "Long term, land consistently idle for four or more years"
+    },
+    "9": {
+        "remapped_id": 5,
+        "count": 23023458,
+        "class_name": "Miscellaneous grain and hay"
+    },
+    "17": {
+        "remapped_id": 6,
+        "count": 5820552,
+        "class_name": "Miscellaneous truck"
+    },
+    "23": {
+        "remapped_id": 7,
+        "count": 3823279,
+        "class_name": "Olives"
+    },
+    "31": {
+        "remapped_id": 8,
+        "count": 1951184,
+        "class_name": "Flowers, nursery & Christmas tree farms"
+    },
+    "36": {
+        "remapped_id": 9,
+        "count": 1161104,
+        "class_name": "Miscellaneous deciduous"
+    },
+    "46": {
+        "remapped_id": 10,
+        "count": 560216,
+        "class_name": "Apples"
+    },
+    "50": {
+        "remapped_id": 11,
+        "count": 291176,
+        "class_name": "Greenhouse"
+    },
+    "2": {
+        "remapped_id": 12,
+        "count": 37929279,
+        "class_name": "Corn,Sorghum or Sudan grouped for remote sensing only"
+    },
+    "4": {
+        "remapped_id": 13,
+        "count": 36235237,
+        "class_name": "Alfalfa & alfalfa mixtures"
+    },
+    "11": {
+        "remapped_id": 14,
+        "count": 15964015,
+        "class_name": "Wheat"
+    },
+    "13": {
+        "remapped_id": 15,
+        "count": 12254944,
+        "class_name": "Miscellaneous grasses"
+    },
+    "14": {
+        "remapped_id": 16,
+        "count": 13673006,
+        "class_name": "Native pasture"
+    },
+    "32": {
+        "remapped_id": 17,
+        "count": 1786000,
+        "class_name": "Potatoes"
+    },
+    "18": {
+        "remapped_id": 18,
+        "count": 2126343,
+        "class_name": "Golf course \u2013 irrigated"
+    },
+    "7": {
+        "remapped_id": 19,
+        "count": 30213870,
+        "class_name": "Walnuts"
+    },
+    "22": {
+        "remapped_id": 20,
+        "count": 3692434,
+        "class_name": "Melons, squash, and cucumbers (all types)"
+    },
+    "43": {
+        "remapped_id": 21,
+        "count": 599642,
+        "class_name": "Turf farms"
+    },
+    "40": {
+        "remapped_id": 22,
+        "count": 768397,
+        "class_name": "Eucalyptus"
+    },
+    "1": {
+        "remapped_id": 23,
+        "count": 103835782,
+        "class_name": "Almonds"
+    },
+    "28": {
+        "remapped_id": 24,
+        "count": 2645192,
+        "class_name": "Cherries"
+    },
+    "48": {
+        "remapped_id": 25,
+        "count": 360787,
+        "class_name": "Kiwis"
+    },
+    "53": {
+        "remapped_id": 26,
+        "count": 143403,
+        "class_name": "Miscellaneous subtropical fruit"
+    },
+    "16": {
+        "remapped_id": 27,
+        "count": 8315569,
+        "class_name": "Lettuce or Leafy Greens grouped for remote sensing only"
+    },
+    "19": {
+        "remapped_id": 28,
+        "count": 4736373,
+        "class_name": "Cole crops (mixture of 22-25)"
+    },
+    "34": {
+        "remapped_id": 29,
+        "count": 1291058,
+        "class_name": "Bush berries"
+    },
+    "21": {
+        "remapped_id": 30,
+        "count": 4233768,
+        "class_name": "Peaches and nectarines"
+    },
+    "26": {
+        "remapped_id": 31,
+        "count": 2988720,
+        "class_name": "Strawberries"
+    },
+    "52": {
+        "remapped_id": 32,
+        "count": 234356,
+        "class_name": "Miscellaneous field"
+    },
+    "25": {
+        "remapped_id": 33,
+        "count": 3330712,
+        "class_name": "Safflower"
+    },
+    "27": {
+        "remapped_id": 34,
+        "count": 3036530,
+        "class_name": "Prunes"
+    },
+    "5": {
+        "remapped_id": 35,
+        "count": 35386506,
+        "class_name": "Pistachios"
+    },
+    "47": {
+        "remapped_id": 36,
+        "count": 409164,
+        "class_name": "Pecans"
+    },
+    "12": {
+        "remapped_id": 37,
+        "count": 15398872,
+        "class_name": "Tomato (processing and market)"
+    },
+    "20": {
+        "remapped_id": 38,
+        "count": 4065982,
+        "class_name": "Onions & garlic"
+    },
+    "24": {
+        "remapped_id": 39,
+        "count": 3407903,
+        "class_name": "Avocados"
+    },
+    "29": {
+        "remapped_id": 40,
+        "count": 2440230,
+        "class_name": "Carrots"
+    },
+    "41": {
+        "remapped_id": 41,
+        "count": 728292,
+        "class_name": "Beans (dry)"
+    },
+    "44": {
+        "remapped_id": 42,
+        "count": 610280,
+        "class_name": "Peppers (chili, bell, etc.)"
+    },
+    "42": {
+        "remapped_id": 43,
+        "count": 790614,
+        "class_name": "Wild Rice"
+    },
+    "15": {
+        "remapped_id": 44,
+        "count": 8850540,
+        "class_name": "Cotton"
+    },
+    "33": {
+        "remapped_id": 45,
+        "count": 1384882,
+        "class_name": "Pomegranates"
+    },
+    "35": {
+        "remapped_id": 46,
+        "count": 1291155,
+        "class_name": "Sweet potatoes"
+    },
+    "38": {
+        "remapped_id": 47,
+        "count": 1116073,
+        "class_name": "Plums"
+    },
+    "49": {
+        "remapped_id": 48,
+        "count": 336490,
+        "class_name": "Apricots"
+    },
+    "30": {
+        "remapped_id": 49,
+        "count": 2421943,
+        "class_name": "Sunflowers"
+    },
+    "39": {
+        "remapped_id": 50,
+        "count": 825693,
+        "class_name": "Dates"
+    },
+    "10": {
+        "remapped_id": 51,
+        "count": 17271784,
+        "class_name": "Rice"
+    },
+    "45": {
+        "remapped_id": 52,
+        "count": 587500,
+        "class_name": "Pears"
+    },
+    "51": {
+        "remapped_id": 53,
+        "count": 278983,
+        "class_name": "Induced high water table native pasture"
+    },
+    "37": {
+        "remapped_id": 54,
+        "count": 1017304,
+        "class_name": "Sugar beets"
+    }
+}

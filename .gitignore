@@ -1,7 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.env
+.env.*
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# Experiment artifacts
+wandb/
+output/
+output_app/
+runs/
+logs/
+*.log
+
+# Local data + imagery (keep out of git)
 PASTIS24_checkpoints/
 datasets/
-output/
 satellite_images/
-__pycache__/
 models/saved_models/
-*.pyc
+data/Arkansas/rgb/
+data/Arkansas/grayscale/
+data/Arkansas/overlays/
+data/California/rgb/
+data/California/grayscale/
+data/California/overlays/
+
+# Generated analysis outputs (keep split CSVs)
+data/Arkansas/*.png
+data/Arkansas/*.csv
+!data/Arkansas/tiles_train_val_AR.csv
+data/California/*.png
+data/California/*.csv
+!data/California/tiles_train_val.csv
+
+# Root-level generated plots/metrics
+confusion_matrix_CA.png
+grouped_top_k_accuracies.png
+test.png
+top_k_accuracies_plot.png
+topk_per_cls_accuracies.json
+topk_per_cls_accuracies.pkl

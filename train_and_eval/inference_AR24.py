@@ -78,6 +78,26 @@ def pad_images_to_same_size(img1, img2):
 def visualize_rgb(argmax_array, num_classes): 
     return colormaps[argmax_array]
 
+def visualize_ground_truth(ground_truth, output_path, class_names):
+    import pdb; pdb.set_trace()
+    fig, ax = plt.subplots(1, 2, figsize=(12, 6), gridspec_kw={'width_ratios': [4, 1]})
+    ax[0].imshow(ground_truth)
+    ax[0].axis('off')
+    ax[0].set_title('Ground Truth')
+
+    for idx, class_name in enumerate(class_names):
+        color = colormaps[idx]
+        ax[1].add_patch(plt.Rectangle((0, len(class_names) - idx - 1), 1.2, 1.2, color=np.array(color) / 255.0))
+        ax[1].text(2, len(class_names) - idx - 0.5, class_name, va='center', ha='left', fontsize=12)
+    ax[1].set_ylim(0, len(class_names))
+    ax[1].set_xlim(0, 3)
+    ax[1].axis('off')
+    ax[1].set_title('Color Legend')
+
+    plt.tight_layout()
+    plt.show()
+    fig.savefig(output_path)
+
 def visualize_inference(output, output_path, class_names):
     output[output > len(colormaps)] = 0
     num_classes = len(class_names)
@@ -153,7 +173,7 @@ def inference(net, dataloader, groundtruth, device):
     print("IoU per class (whole):", iou_per_class_whole)
     return all_outputs
 
-def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_gt=True):
+def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_gt=True, show_gt_only=False):
     output_path = os.path.join(output_dir, sub_region + '.png')
     if os.path.isfile(output_path):
         print("Output file already exists, skipping inference for %s" % sub_region)
@@ -161,8 +181,13 @@ def inference_AR(config_file, raw_dir, input_dir, sub_region, output_dir, show_g
     ground_truth_path = os.path.join(raw_dir, sub_region, 'cdl.tif')
     with rasterio.open(ground_truth_path) as src:
         cdl_image = src.read(1)
-    cdl_image_2classes = normalize_classes(cdl_image)
-    cdl_image_color_map = colormaps[cdl_image_2classes]
+    #cdl_image_2classes = normalize_classes(cdl_image)
+    #cdl_image_color_map = colormaps[cdl_image_2classes]
+    cdl_image_color_map = cdl_image
+    if show_gt_only:
+        visualize_ground_truth(cdl_image_color_map, output_path, classes)
+        return
+
     config = read_yaml(config_file)
     device_ids = config['DEVICE']['device_id']
     device = get_device(device_ids, allow_cpu=False)

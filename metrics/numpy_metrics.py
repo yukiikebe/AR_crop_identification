@@ -121,6 +121,77 @@ def get_accuracy(predicted, labels, unk_mask=None, return_splits=False):
     return num_correct / num_total
 
 
+def get_accuracy_topk(predicted, labels, unk_mask=None, return_splits=False, top_k=5):
+    """
+    Compute accuracy for rank 1 to rank `top_k`.
+    
+    Parameters:
+        predicted (np.ndarray): 2D array (N, C) with class probabilities or rankings per sample.
+        labels (np.ndarray): 1D array (N,) with true labels.
+        unk_mask (np.ndarray, optional): Boolean mask to filter samples.
+        return_splits (bool): If True, return individual correct and total counts.
+        top_k (int): The maximum rank to compute accuracy for (default is 5).
+
+    Returns:
+        dict: A dictionary containing accuracy from rank 1 to rank `top_k`.
+    """
+    if unk_mask is not None:
+        predicted = predicted[unk_mask]
+        labels = labels[unk_mask]
+    
+    # Get top-k predictions per sample
+    top_k_preds = np.argsort(predicted, axis=1)[:, -top_k:][:, ::-1]  # Sort and get top-k
+    
+    accuracies = {}
+    for k in range(1, top_k + 1):
+        is_correct = np.any(top_k_preds[:, :k] == labels[:, None], axis=1).astype(float)
+        num_correct = is_correct.sum()
+        num_total = is_correct.shape[0]
+        accuracy = num_correct / num_total if num_total > 0 else 0
+        accuracies[f'top_{k}'] = (num_correct, num_total) if return_splits else accuracy
+    
+    return accuracies
+
+
+def get_accuracy_per_class(predicted, labels, unk_mask=None, return_splits=False, top_k=5):
+    """
+    Compute accuracy for rank 1 to rank `top_k` per class.
+    
+    Parameters:
+        predicted (np.ndarray): 2D array (N, C) with class probabilities or rankings per sample.
+        labels (np.ndarray): 1D array (N,) with true labels.
+        unk_mask (np.ndarray, optional): Boolean mask to filter samples.
+        return_splits (bool): If True, return individual correct and total counts per class.
+        top_k (int): The maximum rank to compute accuracy for (default is 5).
+
+    Returns:
+        dict: A dictionary containing accuracy from rank 1 to rank `top_k` per class.
+    """
+    if unk_mask is not None:
+        predicted = predicted[unk_mask]
+        labels = labels[unk_mask]
+    
+    # Get top-k predictions per sample
+    top_k_preds = np.argsort(predicted, axis=1)[:, -top_k:][:, ::-1]  # Sort and get top-k
+    
+    unique_classes = np.unique(labels)
+    accuracies = {cls: {} for cls in unique_classes}
+    
+    for cls in unique_classes:
+        class_mask = labels == cls
+        class_labels = labels[class_mask]
+        class_top_k_preds = top_k_preds[class_mask]
+        
+        for k in range(1, top_k + 1):
+            is_correct = np.any(class_top_k_preds[:, :k] == class_labels[:, None], axis=1).astype(float)
+            num_correct = is_correct.sum()
+            num_total = is_correct.shape[0]
+            accuracy = num_correct / num_total if num_total > 0 else 0
+            accuracies[cls][f'top_{k}'] = (num_correct, num_total) if return_splits else accuracy
+    
+    return accuracies
+
+
 def get_per_class_loss(losses, labels, unk_masks=None):
     if unk_masks is not None:
         losses = losses[unk_masks]

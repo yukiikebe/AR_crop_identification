@@ -1,78 +1,129 @@
-library(terra)
-library(CropScapeR)
-library(dplyr)
-library(sf)
-library(readxl)
+#!/usr/bin/env Rscript
 
+suppressPackageStartupMessages({
+  library(terra)
+  library(CropScapeR)
+  library(sf)
+})
 
-# Base directory containing all the subdirectories
-base_dir <- "/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023_all"
-
-# List all subdirectories in the base directory
-sub_dirs <- list.dirs(base_dir, full.names = TRUE, recursive = FALSE)
-
-list_tiff_files <- function(directory) {
-  return(list.files(directory, pattern = "10m_rgb_.*\\.tif$", full.names = TRUE, recursive = TRUE))
-}
-
-load_and_plot_sentinel <- function(filepath) {
-  sentinel.image <- terra::rast(filepath)
-  print(filepath)
-  plot.new() 
-  plotRGB(sentinel.image, r=1, g=2, b=3, stretch="lin")
-  Sys.sleep(5)
-  return(sentinel.image)
-}
-
-get_and_plot_extent <- function(image) {
-  study.extent <- ext(image) %>%
-    vect(.) %>%
-    set.crs(image) %>%
-    st_as_sf(.)
-  # plot.new() 
-  # plot(study.extent)
-  return(study.extent)
-}
-
-get_file_name<-function(path){
-  name<-basename(path)
-  file_name_no_ext <- sub("\\.tif$", "", name)
-  return(file_name_no_ext)
-}
-
-get_cdl<-function(year, extent, name, output){
-  cdl.sa <- GetCDLData(aoi = extent, year = "2023", type = "b",format = "raster")
-  cdl.sa.rast <- rast(cdl.sa)
-  cdl.sa.rast.proj <- project(cdl.sa.rast$Layer_1, y="EPSG:3857", method="near", mask=FALSE, align=FALSE, use_gdal=FALSE, by_util=TRUE)
-  cdl.colortable <- as.data.frame(coltab(cdl.sa.rast))
-  coltab(cdl.sa.rast.proj) <- cdl.colortable
-  
-  cdl.sa.rast.resampled <- resample(cdl.sa.rast.proj, sentinel, method="near")
-  print("ok")
-  
-  plot(cdl.sa.rast.resampled)
-  output_path_cdl =paste0(output,"/cdl.tif") 
-  print(output_path_cdl)
-  writeRaster(cdl.sa.rast.resampled, filename=output_path_cdl, overwrite=TRUE)
-  return(cdl.sa.rast.resampled)
-}
-
-# Loop through each subdirectory and process the files
-for (dir in sub_dirs) {
-  setwd(dir)
-  files <- list_tiff_files(dir)
-  if (length(files) > 0) {
-    item <- files[1]
-    sentinel <- load_and_plot_sentinel(item)
-    extent <- get_and_plot_extent(sentinel)
-    path<-get_file_name(item)
-    output<- getwd()
-    cdl<-get_cdl('2023',extent,path,output)
+parse_args <- function(args) {
+  out <- list(base_dir = NULL, year = NULL, overwrite = FALSE, limit = NULL)
+  i <- 1
+  while (i <= length(args)) {
+    a <- args[[i]]
+    if (a == "--base-dir") {
+      i <- i + 1
+      out$base_dir <- args[[i]]
+    } else if (a == "--year") {
+      i <- i + 1
+      out$year <- args[[i]]
+    } else if (a == "--overwrite") {
+      out$overwrite <- TRUE
+    } else if (a == "--limit") {
+      i <- i + 1
+      out$limit <- as.integer(args[[i]])
+    } else {
+      stop(paste("Unknown argument:", a))
+    }
+    i <- i + 1
   }
+  if (is.null(out$base_dir) || out$base_dir == "") stop("--base-dir is required")
+  if (is.null(out$year) || out$year == "") stop("--year is required")
+  return(out)
 }
 
-# print(paste("path:", path))
-# for (item in files) {
-#   print(item)
-#   print(class(item))
-# }
+find_template <- function(meta_dir) {
+  # Prefer 10m_rgb_*.tif if present; fallback to any B2_*.tif.
+  files_rgb <- list.files(meta_dir, pattern = "10m_rgb_.*\\.tif$", full.names = TRUE, recursive = TRUE)
+  if (length(files_rgb) > 0) return(files_rgb[[1]])
+  files_b2 <- list.files(meta_dir, pattern = "B2_.*\\.tif$", full.names = TRUE, recursive = TRUE)
+  if (length(files_b2) > 0) return(files_b2[[1]])
+  return(NA)
+}
+
+extent_as_sf <- function(rast_obj) {
+  e <- terra::ext(rast_obj)
+  v <- terra::vect(e)
+  v <- terra::set.crs(v, terra::crs(rast_obj))
+  return(sf::st_as_sf(v))
+}
+
+download_cdl_for_meta_patch <- function(meta_dir, year, overwrite) {
+  out_fp <- file.path(meta_dir, "cdl.tif")
+  if (!overwrite && file.exists(out_fp)) {
+    return(list(ok = TRUE, skipped = TRUE, out_fp = out_fp))
+  }
+
+  template_fp <- find_template(meta_dir)
+  if (is.na(template_fp)) {
+    return(list(ok = FALSE, skipped = FALSE, error = "No template raster found (expected 10m_rgb_*.tif or B2_*.tif)."))
+  }
+
+  sentinel <- terra::rast(template_fp)
+  study_extent <- extent_as_sf(sentinel)
+
+  # Download CDL via CropScape API and align to Sentinel grid.
+  cdl_path <- CropScapeR::GetCDLData(aoi = study_extent, year = as.character(year), type = "b", format = "raster")
+  cdl_rast <- terra::rast(cdl_path)
+
+  # CropScapeR typically returns Layer_1; fallback to the first layer.
+  cdl_layer <- tryCatch(cdl_rast$Layer_1, error = function(e) cdl_rast[[1]])
+  cdl_proj <- terra::project(
+    cdl_layer,
+    y = terra::crs(sentinel),
+    method = "near",
+    mask = FALSE,
+    align = FALSE,
+    use_gdal = FALSE,
+    by_util = TRUE
+  )
+
+  # Preserve class colour-table if available (not required for training).
+  ctab <- tryCatch(as.data.frame(terra::coltab(cdl_rast)), error = function(e) NULL)
+  if (!is.null(ctab)) {
+    try(terra::coltab(cdl_proj) <- ctab, silent = TRUE)
+  }
+
+  cdl_resampled <- terra::resample(cdl_proj, sentinel, method = "near")
+  terra::writeRaster(cdl_resampled, filename = out_fp, overwrite = TRUE)
+  return(list(ok = TRUE, skipped = FALSE, out_fp = out_fp))
+}
+
+main <- function() {
+  opts <- parse_args(commandArgs(trailingOnly = TRUE))
+  base_dir <- opts$base_dir
+  year <- opts$year
+  overwrite <- opts$overwrite
+  limit <- opts$limit
+
+  if (!dir.exists(base_dir)) stop(paste("Base dir not found:", base_dir))
+  sub_dirs <- list.dirs(base_dir, full.names = TRUE, recursive = FALSE)
+  if (!is.null(limit) && is.finite(limit)) sub_dirs <- head(sub_dirs, limit)
+
+  n_ok <- 0
+  n_skip <- 0
+  n_fail <- 0
+
+  for (dir in sub_dirs) {
+    res <- tryCatch(
+      download_cdl_for_meta_patch(dir, year, overwrite),
+      error = function(e) list(ok = FALSE, skipped = FALSE, error = as.character(e))
+    )
+    if (isTRUE(res$ok)) {
+      if (isTRUE(res$skipped)) {
+        n_skip <- n_skip + 1
+      } else {
+        n_ok <- n_ok + 1
+      }
+    } else {
+      n_fail <- n_fail + 1
+      msg <- if (!is.null(res$error)) res$error else "unknown error"
+      message("[fail] ", basename(dir), ": ", msg)
+    }
+  }
+
+  message("Done. ok=", n_ok, " skipped=", n_skip, " failed=", n_fail)
+  if (n_fail > 0) quit(status = 1)
+}
+
+main()

@@ -4,7 +4,7 @@ MODEL:
   max_seq_len: 20
   num_channels: 11
   num_features: 16
-  num_classes:  27
+  num_classes:  5
   ignore_background: False
   dropout: 0.
   patch_size: 2
@@ -19,32 +19,27 @@ MODEL:
 
 DATASETS:
   class_config: "configs/Arkansas/arkansas_data.yaml"
+  max_doy: 366
   train:
-    # dataset: "AR24"
-    # label_map:
-    # max_seq_len: 60
-    # batch_size: 32
-    # extra_data:
-    # num_workers: 4
-    dataset: "AR23_all"
+    dataset: "AR23"
     label_map:
     max_seq_len: 20
-    batch_size: 16
+    batch_size: 128
     extra_data:
     num_workers: 4
   eval:
-    dataset: "AR23_all"
+    dataset: "AR23"
     label_map:
     max_seq_len: 20
-    batch_size: 16
+    batch_size: 32
     extra_data:
     num_workers: 4
 
   test:
-    dataset: "AR23_all"
+    dataset: "AR23"
     label_map:
     max_seq_len: 20
-    batch_size: 16
+    batch_size: 32
     extra_data:
     num_workers: 4
 
@@ -64,11 +59,11 @@ SOLVER:
   weight_decay: 0.000
 
 CHECKPOINT:
-  load_from_checkpoint: #'models/saved_models/AR23_all_focal/best.pth'
+  load_from_checkpoint: #'models/saved_models/AR23_focal/best.pth'
   partial_restore: False
-  save_path: 'models/saved_models/debug/'
-  train_metrics_steps: 250
-  eval_steps: 250
-  save_steps: 1000
+  save_path: 'models/saved_models/AR23_focal/'
+  train_metrics_steps: 50
+  eval_steps: 5000
+  save_steps: 5000
 DEVICE: 
   device_id: [0]

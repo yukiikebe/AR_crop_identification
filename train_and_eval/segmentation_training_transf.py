@@ -7,13 +7,15 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
+from tqdm import tqdm
+import wandb
 
 from models import get_model
 from utils.config_files_utils import read_yaml, copy_yaml, get_params_values
 from utils.torch_utils import get_device, get_net_trainable_params, load_from_checkpoint
 from data import get_dataloaders
 from metrics.torch_metrics import get_mean_metrics
-from metrics.numpy_metrics import get_classification_metrics, get_per_class_loss
+from metrics.numpy_metrics import get_classification_metrics, get_per_class_loss, get_accuracy_topk
 from metrics.loss_functions import get_loss
 from utils.summaries import write_mean_summaries, write_class_summaries
 from data import get_loss_data_input
@@ -37,7 +39,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
         losses_all = []
         net.eval()
         with torch.no_grad():
-            for step, sample in enumerate(evalloader):
+            for step, sample in enumerate(tqdm(evalloader)):
                 logits = net(sample['inputs'].to(device))
                 logits = logits.permute(0, 2, 3, 1)
                 _, predicted = torch.max(logits.data, -1)
@@ -58,7 +60,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
 
         eval_metrics = get_classification_metrics(predicted=predicted_classes, labels=target_classes,
                                                   n_classes=num_classes, unk_masks=None)
-
+        
         micro_acc, micro_precision, micro_recall, micro_F1, micro_IOU = eval_metrics['micro']
         macro_acc, macro_precision, macro_recall, macro_F1, macro_IOU = eval_metrics['macro']
         class_acc, class_precision, class_recall, class_F1, class_IOU = eval_metrics['class']
@@ -69,7 +71,7 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
               "precision: %.4f/%.4f, recall: %.4f/%.4f, F1: %.4f/%.4f, unique pred labels: %s" %
               (losses.mean(), micro_IOU, macro_IOU, micro_acc, macro_acc, micro_precision, macro_precision,
                micro_recall, macro_recall, micro_F1, macro_F1, np.unique(predicted_classes)))
-
+        
         return (un_labels,
                 {"macro": {"Loss": losses.mean(), "Accuracy": macro_acc, "Precision": macro_precision,
                            "Recall": macro_recall, "F1": macro_F1, "IOU": macro_IOU},
@@ -90,6 +92,11 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
     num_steps_train = len(dataloaders['train'])
     local_device_ids = config['local_device_ids']
     weight_decay = get_params_values(config['SOLVER'], "weight_decay", 0)
+
+    wandb.login()
+    run = wandb.init(
+        project='DeepSatModels-AR23-Seasonal',
+    )
 
     start_global = 1
     start_epoch = 1
@@ -117,12 +124,10 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
 
     optimizer.zero_grad()
 
-    writer = SummaryWriter(save_path)
-
     BEST_IOU = 0
     net.train()
     for epoch in range(start_epoch, start_epoch + num_epochs):
-        for step, (sample, paths) in enumerate(dataloaders['train']):
+        for step, sample in enumerate(dataloaders['train']):
             abs_step = start_global + (epoch - start_epoch) * num_steps_train + step
             logits, ground_truth, loss = train_step(net, sample, loss_fn, optimizer, device, loss_input_fn=loss_input_fn)
             if len(ground_truth) == 2:
@@ -136,7 +141,15 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                 batch_metrics = get_mean_metrics(
                     logits=logits, labels=labels, unk_masks=unk_masks, n_classes=num_classes, loss=loss, epoch=epoch,
                     step=step)
-                write_mean_summaries(writer, batch_metrics, abs_step, mode="train", optimizer=optimizer)
+                #write_mean_summaries(writer, batch_metrics, abs_step, mode="train", optimizer=optimizer)
+                wandb.log(
+                    {
+                        "train_loss": loss,
+                        "train_batch_iou": batch_metrics['IOU'],
+                        "train_batch_accuracy": batch_metrics['Accuracy'],
+                    },
+                    step=abs_step,
+                )
                 print("abs_step: %d, train_metrics_steps: %d, epoch: %d, step: %5d, loss: %.7f, batch_iou: %.4f, batch accuracy: %.4f, batch precision: %.4f, "
                       "batch recall: %.4f, batch F1: %.4f" %
                       (abs_step, train_metrics_steps, epoch, step + 1, loss, batch_metrics['IOU'], batch_metrics['Accuracy'], batch_metrics['Precision'],
@@ -157,17 +170,25 @@ def train_and_evaluate(net, dataloaders, config, device, lin_cls=False):
                         torch.save(net.state_dict(), "%s/best.pth" % (save_path))
                     BEST_IOU = eval_metrics[1]['macro']['IOU']
 
-                write_mean_summaries(writer, eval_metrics[1]['micro'], abs_step, mode="eval_micro", optimizer=None)
-                write_mean_summaries(writer, eval_metrics[1]['macro'], abs_step, mode="eval_macro", optimizer=None)
-                write_class_summaries(writer, [eval_metrics[0], eval_metrics[1]['class']], abs_step, mode="eval",
-                                      optimizer=None)
+                wandb.log(
+                    {
+                        "eval_micro": eval_metrics[1]['micro']['IOU'],
+                        "eval_macro": eval_metrics[1]['macro']['IOU'],
+                        "eval_accuracy": eval_metrics[1]['micro']['Accuracy'],
+                    },
+                    step=abs_step,
+                )
+                #write_mean_summaries(writer, eval_metrics[1]['micro'], abs_step, mode="eval_micro", optimizer=None)
+                #write_mean_summaries(writer, eval_metrics[1]['macro'], abs_step, mode="eval_macro", optimizer=None)
+                #write_class_summaries(writer, [eval_metrics[0], eval_metrics[1]['class']], abs_step, mode="eval",
+                #                      optimizer=None)
                 net.train()
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
     parser.add_argument('--config', help='configuration (.yaml) file to use')
-    parser.add_argument('--device', default='0,1', type=str, help='gpu ids to use')
+    parser.add_argument('--device', default='0', type=str, help='gpu ids to use')
     parser.add_argument('--lin', action='store_true', help='train linear classifier only')
 
     args = parser.parse_args()
@@ -181,7 +202,7 @@ if __name__ == "__main__":
     config = read_yaml(config_file)
     config['local_device_ids'] = device_ids
 
-    num_classes = 53
+    num_classes = 26
     config['MODEL']['num_classes'] = num_classes
 
     dataloaders = get_dataloaders(config)

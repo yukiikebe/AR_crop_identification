@@ -13,7 +13,7 @@ import shutil
 ee.Authenticate()
 ee.Initialize(project='ee-vvuonghn')
 
-MAPBOX_TOKEN = "pk.eyJ1IjoidnVvbmdoIiwiYSI6ImNseWRobHVtZTA0a2EyaW9wc2loM2cxOWIifQ.U5utf4cO8ldi087Mn-h0FA"
+MAPBOX_TOKEN = os.getenv("DEEPSAT_MAPBOX_TOKEN") or os.getenv("MAPBOX_TOKEN")
 save_path = './satellite_images/'
 # if os.path.exists(save_path):
 #     shutil.rmtree(save_path)
@@ -47,13 +47,22 @@ def get_map():
     st.title('Demo for Satellite Project')
     st.title('Selection the ROI')
     # Initialize a Folium map using Mapbox tiles
-    
+
+    if MAPBOX_TOKEN:
+        tiles = (
+            "https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}"
+            f"?access_token={MAPBOX_TOKEN}"
+        )
+        attr = "Mapbox"
+    else:
+        tiles = "OpenStreetMap"
+        attr = "OpenStreetMap"
     m = folium.Map(
         location=[36.0688455727019, -94.17536208601327],
         zoom_start=10,
-        tiles=f"https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{{z}}/{{x}}/{{y}}?access_token={MAPBOX_TOKEN}",
+        tiles=tiles,
         # tiles=f"https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{{z}}/{{x}}/{{y}}?access_token={MAPBOX_TOKEN}",
-        attr='Mapbox attribution'
+        attr=attr,
     )
 
     # Add drawing options to the map

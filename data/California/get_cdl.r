@@ -41,7 +41,7 @@ get_file_name<-function(path){
 }
 
 get_cdl<-function(year, extent, name, output){
-  cdl.sa <- GetCDLData(aoi = extent, year = "2023", type = "b",format = "raster")
+  cdl.sa <- GetCDLData(aoi = extent, year = "2022", type = "b",format = "raster")
   cdl.sa.rast <- rast(cdl.sa)
   cdl.sa.rast.proj <- project(cdl.sa.rast$Layer_1, y="EPSG:3857", method="near", mask=FALSE, align=FALSE, use_gdal=FALSE, by_util=TRUE)
   cdl.colortable <- as.data.frame(coltab(cdl.sa.rast))
