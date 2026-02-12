@@ -128,7 +128,8 @@ if __name__ == "__main__":
 
     with open(config['DATASETS']['class_config'], 'r') as file:
         arkansas_data = yaml.safe_load(file)
-    config['MODEL']['num_classes'] = 26
+    config['MODEL']['num_classes'] = len(arkansas_data['classes'])
+    print(len(arkansas_data['classes']))
 
     dataloaders = get_dataloaders(config)
     net = get_model(config, device)
