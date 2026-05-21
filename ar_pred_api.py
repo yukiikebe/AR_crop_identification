@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import base64
 import io
 import os
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Dict, List, Literal, Optional, Tuple
 
 import numpy as np
 import rasterio
@@ -126,8 +128,8 @@ class BBox(BaseModel):
 
 class PredictRequest(BaseModel):
     year: int = Field(..., ge=2000, le=2100)
-    month: int | None = Field(default=None, ge=1, le=12, description="Calendar month for model selection; clamped to 6..11.")
-    model_month: int | None = Field(default=None, ge=6, le=11, description="Override: explicitly choose 6..11mo model.")
+    month: Optional[int] = Field(default=None, ge=1, le=12, description="Calendar month for model selection; clamped to 6..11.")
+    model_month: Optional[int] = Field(default=None, ge=6, le=11, description="Override: explicitly choose 6..11mo model.")
     bbox: BBox
     output: Literal["png", "png+npz", "npz"] = "png"
 
@@ -135,17 +137,17 @@ class PredictRequest(BaseModel):
 class PredictResponse(BaseModel):
     year: int
     model_month: int
-    meta_patches: list[str]
+    meta_patches: List[str]
 
     height: int
     width: int
     crs: str
-    transform_gdal: tuple[float, float, float, float, float, float]
+    transform_gdal: Tuple[float, float, float, float, float, float]
 
-    pred_png_base64: str | None = None
-    pred_labels_npz_base64: str | None = None
-    pred_class_hist: dict[str, int]
-    class_names: dict[str, str]
+    pred_png_base64: Optional[str] = None
+    pred_labels_npz_base64: Optional[str] = None
+    pred_class_hist: Dict[str, int]
+    class_names: Dict[str, str]
 
 
 app = FastAPI(title="DeepSatModels Arkansas Predictions API", version="0.1.0")

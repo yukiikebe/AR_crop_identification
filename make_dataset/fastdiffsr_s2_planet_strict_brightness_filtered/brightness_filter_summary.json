@@ -1,0 +1,20 @@
+{
+  "hr_bright_threshold": 245,
+  "hr_max_bright_ratio": 0.35,
+  "hr_max_mean_brightness": 240.0,
+  "input_root": "make_dataset/fastdiffsr_s2_planet_strict",
+  "lr_bright_threshold": 245,
+  "lr_max_bright_ratio": 0.5,
+  "lr_max_mean_brightness": 245.0,
+  "output_root": "make_dataset/fastdiffsr_s2_planet_strict_brightness_filtered",
+  "splits": {
+    "train_64_256": {
+      "kept": 28507,
+      "rejected": 1927
+    },
+    "val_64_256": {
+      "kept": 2089,
+      "rejected": 125
+    }
+  }
+}

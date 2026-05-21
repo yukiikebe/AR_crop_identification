@@ -1,0 +1,22 @@
+name: super_res310
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - cudatoolkit
+  - ipython
+  - lmdb
+  - matplotlib
+  - pandas
+  - pip
+  - python=3.10
+  - pyyaml
+  - rasterio
+  - scikit-learn
+  - tensorboard
+  - tifffile
+  - tqdm
+  - python-blosc2
+  - numpy[version='<2']
+prefix: /home/yikebe/.conda/envs/super_res310

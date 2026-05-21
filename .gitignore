@@ -49,10 +49,31 @@ data/California/*.png
 data/California/*.csv
 !data/California/tiles_train_val.csv
 
-# Root-level generated plots/metrics
-confusion_matrix_CA.png
-grouped_top_k_accuracies.png
-test.png
-top_k_accuracies_plot.png
-topk_per_cls_accuracies.json
-topk_per_cls_accuracies.pkl
+# Raster/image outputs
+*.tif
+*.tiff
+*.TIF
+*.TIFF
+*.png
+*.PNG
+*.csv
+!data/Arkansas/tiles_train_val_AR.csv
+!data/California/tiles_train_val.csv
+
+# Model checkpoints / experiment outputs
+**/experiments/
+**/checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.tar
+*.onnx
+
+# Generated artifacts
+wandb/
+models/saved_models/
+super_resolution_result/
+fastdiffsr_preds/
+make_dataset/raw_sentinel/
+make_dataset/fastdiffsr_s2_planet_clean_v*/pairs_manifest.jsonl
+make_dataset/fastdiffsr_s2_planet_strict_brightness_filtered/pairs_manifest.filtered.jsonl

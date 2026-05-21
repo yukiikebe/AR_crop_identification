@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import io
 import os
@@ -5,7 +7,7 @@ import sys
 import threading
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Dict, List, Literal, Optional, Union
 
 import blosc2
 import numpy as np
@@ -53,7 +55,7 @@ DEFAULT_CHECKPOINT = (
 )
 
 
-def _read_b2frame(fp: str | Path, *, dtype) -> np.ndarray:
+def _read_b2frame(fp: Union[str, Path], *, dtype) -> np.ndarray:
     schunk = blosc2.open(str(fp), mode="r")
     shape = np.frombuffer(schunk.vlmeta["shape"], dtype=np.int32)
     out = np.empty(shape, dtype=dtype)
@@ -119,7 +121,7 @@ def _npz_base64(arr: np.ndarray) -> str:
 
 
 @lru_cache(maxsize=2)
-def _load_model_cached(config_path: str, checkpoint_override: str | None):
+def _load_model_cached(config_path: str, checkpoint_override: Optional[str]):
     cfg = read_yaml(config_path)
     device_ids = (cfg.get("DEVICE", {}) or {}).get("device_id", [0])
     device = get_device(device_ids, allow_cpu=True)
@@ -140,7 +142,7 @@ def _infer_meta_patch(
     meta_patch: str,
     dataset_root: str,
     config_path: str,
-    checkpoint_override: str | None,
+    checkpoint_override: Optional[str],
     tile_size: int,
     max_doy: int,
     batch_size: int,
@@ -200,13 +202,13 @@ def _infer_meta_patch(
 
 
 class PredictRequest(BaseModel):
-    lon_id: int | None = Field(default=None, description="Meta-patch X index (lon grid index).")
-    lat_id: int | None = Field(default=None, description="Meta-patch Y index (lat grid index).")
-    meta_patch: str | None = Field(default=None, description="Explicit meta-patch name like '10_3'.")
+    lon_id: Optional[int] = Field(default=None, description="Meta-patch X index (lon grid index).")
+    lat_id: Optional[int] = Field(default=None, description="Meta-patch Y index (lat grid index).")
+    meta_patch: Optional[str] = Field(default=None, description="Explicit meta-patch name like '10_3'.")
 
-    dataset_root: str | None = Field(default=None, description="Root dir containing <meta_patch>/{img,label_remap,doy}.")
+    dataset_root: Optional[str] = Field(default=None, description="Root dir containing <meta_patch>/{img,label_remap,doy}.")
     config_path: str = Field(default=DEFAULT_CONFIG, description="Model config YAML path (repo-relative or absolute).")
-    checkpoint_path: str | None = Field(default=DEFAULT_CHECKPOINT or None, description="Checkpoint (.pth).")
+    checkpoint_path: Optional[str] = Field(default=DEFAULT_CHECKPOINT or None, description="Checkpoint (.pth).")
 
     max_doy: int = Field(default=330, ge=1, le=366)
     batch_size: int = Field(default=64, ge=1, le=4096)
@@ -226,7 +228,7 @@ class PredictRequest(BaseModel):
 class PredictResponse(BaseModel):
     meta_patch: str
     config_path: str
-    checkpoint_path: str | None
+    checkpoint_path: Optional[str]
     dataset_root: str
 
     height: int
@@ -234,19 +236,19 @@ class PredictResponse(BaseModel):
     num_classes: int
 
     pred_png_base64: str
-    gt_png_base64: str | None = None
+    gt_png_base64: Optional[str] = None
 
-    pred_labels_npz_base64: str | None = None
-    gt_labels_npz_base64: str | None = None
+    pred_labels_npz_base64: Optional[str] = None
+    gt_labels_npz_base64: Optional[str] = None
 
-    pred_class_hist: dict[str, int]
-    gt_class_hist: dict[str, int] | None = None
+    pred_class_hist: Dict[str, int]
+    gt_class_hist: Optional[Dict[str, int]] = None
 
 
 class ServerInfo(BaseModel):
     dataset_root: str
     config_path: str
-    checkpoint_path: str | None
+    checkpoint_path: Optional[str]
 
 
 app = FastAPI(title="DeepSatModels Arkansas Inference API", version="0.1.0")
@@ -268,7 +270,7 @@ def info():
 
 
 @app.get("/meta_patches")
-def meta_patches(dataset_root: str | None = None):
+def meta_patches(dataset_root: Optional[str] = None):
     root = dataset_root or os.environ.get("DEEPSAT_AR_DATASET_ROOT", DEFAULT_BFRAME2_ROOT)
     if not root:
         raise HTTPException(status_code=400, detail="dataset_root is required (or set DEEPSAT_AR_DATASET_ROOT).")

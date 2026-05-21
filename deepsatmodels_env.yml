@@ -1,4 +1,4 @@
-name: deepsatmodels
+name: deepsatmodels_crop_id
 channels:
   - conda-forge
   - defaults
