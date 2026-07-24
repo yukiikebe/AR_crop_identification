@@ -1,3 +1,5 @@
+"""Download Arkansas Sentinel-2 imagery from Google Earth Engine."""
+
 import argparse
 import calendar
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -12,12 +14,10 @@ import shutil
 import time
 
 import ee
-import geemap
 import numpy as np
 from tqdm import tqdm
 import rasterio
 from rasterio.merge import merge
-import matplotlib.pyplot as plt
 
 
 DEFAULT_EE_PROJECT = "satelite-430703"
@@ -518,6 +518,10 @@ def _export_with_retries(
     retry_jitter_s: float,
     overwrite: bool = False,
 ) -> None:
+    # Import lazily so CLI help and local verification do not initialize
+    # geemap/matplotlib or their compiled GUI dependencies.
+    import geemap
+
     if not overwrite and os.path.isfile(out_fp) and os.path.getsize(out_fp) > 0:
         return
 
@@ -675,6 +679,8 @@ def build_monthly_statewide_composite(
 
 
 def save_tci_image(blue_band_path, green_band_path, red_band_path, output_path):
+    import matplotlib.pyplot as plt
+
     # Open the TIF files
     if not (os.path.isfile(blue_band_path) and os.path.isfile(green_band_path) and os.path.isfile(red_band_path)):
         return

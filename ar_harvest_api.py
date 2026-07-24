@@ -27,8 +27,10 @@ HARVEST_LAT_MAX = 34.75315095485688
 APP_DIR = Path(__file__).resolve().parent
 DEFAULT_CODE_ROOT = APP_DIR / "harvest_estimation"
 DEFAULT_MODEL_ROOT = APP_DIR / "harvest_estimation" / "models"
-DEFAULT_OUTPUTS_ROOT = APP_DIR / "runtime_data" / "harvest" / "outputs"
-DEFAULT_DATASET_ROOT = APP_DIR / "runtime_data" / "sentinel2"
+# HPC deployment data shared from the project owner's storage. Environment
+# variables still take precedence, so non-HPC deployments can override these.
+DEFAULT_OUTPUTS_ROOT = Path("/scrfs/storage/yikebe/home/DeepSatModels_updated/outputs")
+DEFAULT_DATASET_ROOT = Path("/scrfs/storage/yikebe/home/AR_sentinel2")
 
 
 class BBox(BaseModel):

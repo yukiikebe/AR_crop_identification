@@ -14,7 +14,10 @@ variants are intentionally excluded.
 ├── ar_fastdiffsr_api.py          # FastDiffSR API and async jobs (port 8002)
 ├── ar_harvest_api.py             # Harvest estimation API (port 8003)
 ├── ar_deploy.py                  # Sentinel-2 download and SR utility CLI
-├── data/Arkansas/Download.py     # Earth Engine downloader used by SR jobs
+├── data_download/
+│   ├── download_sentinel2.py     # Earth Engine Sentinel-2 downloader
+│   ├── download_cdl.r            # USDA CDL download and grid alignment
+│   └── README.md                 # Data acquisition instructions
 ├── fastdiffsr/
 │   ├── config/                   # Active x4 inference configuration
 │   ├── model/                    # FastDiffSR inference modules only
@@ -78,6 +81,83 @@ Harvest estimation expects both prepared workbooks and source rasters:
 If `cdl.tif` is absent, the harvest API uses the first
 `<grid id>/*/B4_*.tif` for the tile footprint.
 
+## Download Arkansas input data
+
+The repository includes standalone Sentinel-2 and CDL acquisition scripts.
+Generated data remains ignored by Git.
+
+Use the entrypoint that matches the target workflow:
+
+| Target | Command |
+| --- | --- |
+| FastDiffSR input for a new month | `python ar_deploy.py download ...` |
+| Harvest Sentinel-2 input for a whole year | `python data_download/download_sentinel2.py ... --data-dir <year>_AR` |
+| Harvest CDL after Sentinel-2 | `Rscript data_download/download_cdl.r ...` |
+
+### FastDiffSR input
+
+Download one FastDiffSR-ready Sentinel-2 month. The first run needs interactive
+Earth Engine authentication through `--auth`; later runs can omit it.
+
+```bash
+conda activate super_res310
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+python ar_deploy.py download \
+  --project <earth-engine-project> \
+  --auth \
+  --year 2024 \
+  --month 5 \
+  --band-preset rgb_scl \
+  --data-root /local/data/sentinel2
+```
+
+This creates
+`/local/data/sentinel2/AR_2024_raw/<grid>/<YYYY-MM-DD>/`.
+
+### Harvest source rasters and CDL
+
+Harvest uses the `<year>_AR` directory convention. Download a whole year of
+Sentinel-2 directly into that layout:
+
+```bash
+python data_download/download_sentinel2.py \
+  --project <earth-engine-project> \
+  --auth \
+  --year 2023 \
+  --whole-year \
+  --band-preset all \
+  --data-dir /local/data/sentinel2/2023_AR
+```
+
+Install an `Rscript` executable and the R packages `terra`, `CropScapeR`, and
+`sf`. Then download USDA CDL and align it to each Sentinel tile:
+
+```bash
+Rscript data_download/download_cdl.r \
+  --base-dir /local/data/sentinel2/2023_AR \
+  --year 2023
+```
+
+This writes `/local/data/sentinel2/2023_AR/<grid>/cdl.tif`. Use `--limit 1`
+for a one-tile test before processing every tile.
+
+For a non-HPC deployment, point the APIs at the downloaded data:
+
+```bash
+export DEEPSAT_FASTDIFFSR_RAW_ROOT_TEMPLATE=/local/data/sentinel2/AR_{year}_raw
+export DEEPSAT_FASTDIFFSR_DOWNLOAD_DATA_ROOT=/local/data/sentinel2
+export DEEPSAT_HARVEST_DATASET_ROOT=/local/data/sentinel2
+export DEEPSAT_HARVEST_OUTPUTS_ROOT=/local/data/harvest/outputs
+```
+
+The scripts above generate Sentinel-2 and CDL inputs. They do not generate the
+Harvest workbooks at
+`<outputs root>/<year>_AR/<grid>/harvest_summary_all_crops.xlsx`; provide those
+separately.
+
+See [data_download/README.md](data_download/README.md) for the full workflow,
+including direct `--data-dir` usage and required R packages.
+
 ## Start the services
 
 Open one terminal per process. Relative model paths work from any launch
@@ -105,8 +185,8 @@ unset LD_LIBRARY_PATH
 export MKL_THREADING_LAYER=GNU
 export OMP_NUM_THREADS=1
 
-export DEEPSAT_FASTDIFFSR_RAW_ROOT_TEMPLATE=/path/to/AR_{year}_raw
-export DEEPSAT_FASTDIFFSR_OUT_ROOT=/path/to/fastdiffsr_outputs
+# Optional; defaults to ./fastdiffsr_preds in the clone.
+# export DEEPSAT_FASTDIFFSR_OUT_ROOT=/path/to/fastdiffsr_outputs
 # Optional prebuilt statewide mosaics:
 # export DEEPSAT_FASTDIFFSR_MOSAIC_ROOT=/path/to/fastdiffsr_mosaics
 # Optional Planet metadata used only for the reference overlay:
@@ -118,6 +198,8 @@ python -m uvicorn ar_fastdiffsr_api:app --host 0.0.0.0 --port 8002
 The repository defaults already select:
 
 ```text
+Sentinel-2: /scrfs/storage/yikebe/home/AR_sentinel_align_with_Planet/AR_<year>_raw
+data years:  2020-2024
 config:     fastdiffsr/config/sr_fastdiffsr_infer_x4_planet.json
 checkpoint: fastdiffsr/checkpoints/I283712_E757
 ```
@@ -125,6 +207,7 @@ checkpoint: fastdiffsr/checkpoints/I283712_E757
 Override them only when intentionally testing another compatible model:
 
 ```bash
+export DEEPSAT_FASTDIFFSR_RAW_ROOT_TEMPLATE=/path/to/AR_{year}_raw
 export DEEPSAT_FASTDIFFSR_CONFIG=/path/to/config.json
 export DEEPSAT_FASTDIFFSR_CHECKPOINT=/path/to/checkpoint_prefix
 export DEEPSAT_FASTDIFFSR_DEVICE=0
@@ -143,16 +226,25 @@ unset LD_LIBRARY_PATH
 export MKL_THREADING_LAYER=GNU
 export OMP_NUM_THREADS=1
 
-export DEEPSAT_HARVEST_OUTPUTS_ROOT=/path/to/prepared/harvest/outputs
-export DEEPSAT_HARVEST_DATASET_ROOT=/path/to/sentinel2/source
 # Optional GPU; CPU is the default and is sufficient for small bbox requests.
 # export DEEPSAT_HARVEST_DEVICE=cuda:0
 
 python -m uvicorn ar_harvest_api:app --host 0.0.0.0 --port 8003
 ```
 
-The bundled model code and checkpoints are the defaults. External overrides remain
-available through `DEEPSAT_HARVEST_CODE_ROOT` and
+On this HPC, the default inputs are:
+
+```text
+prepared outputs: /scrfs/storage/yikebe/home/DeepSatModels_updated/outputs
+source rasters:   /scrfs/storage/yikebe/home/AR_sentinel2
+verified years:   2023, 2025
+```
+
+These absolute paths let another user run a clone without copying the datasets,
+provided that user has read/traverse access to the `yikebe` storage area. The
+bundled model code and checkpoints are also used by default. Non-HPC deployments
+can override the paths through `DEEPSAT_HARVEST_OUTPUTS_ROOT`,
+`DEEPSAT_HARVEST_DATASET_ROOT`, `DEEPSAT_HARVEST_CODE_ROOT`, and
 `DEEPSAT_HARVEST_MODEL_ROOT`.
 
 ### 4. Streamlit UI
@@ -162,12 +254,20 @@ conda activate super_res310
 export DEEPSAT_AR_PRED_API_URL=http://localhost:8001
 export DEEPSAT_FASTDIFFSR_API_URL=http://localhost:8002
 export DEEPSAT_HARVEST_API_URL=http://localhost:8003
-streamlit run app_AR_deploy.py --server.fileWatcherType none
+streamlit run app_AR_deploy.py \
+  --server.address 0.0.0.0 \
+  --server.port 8501 \
+  --server.fileWatcherType none
 ```
 
 Crop Identification remains available when port 8001 is running. Super Resolution
 and Crop Harvest Estimation use ports 8002 and 8003 respectively. Each task shows
-its own supported map region.
+its own supported map region. Open `http://<HPC-hostname>:8501`, or forward the
+port from your local machine when direct compute-node access is unavailable:
+
+```bash
+ssh -L 8501:localhost:8501 <user>@<HPC-hostname>
+```
 
 ## API checks
 
@@ -184,13 +284,13 @@ FastDiffSR request:
 curl -X POST http://localhost:8002/predict \
   -H 'Content-Type: application/json' \
   -d '{
-    "year": 2019,
-    "month": 1,
+    "year": 2024,
+    "month": 5,
     "bbox": {
-      "lon_min": -94.2,
-      "lat_min": 34.7,
-      "lon_max": -93.8,
-      "lat_max": 35.0
+      "lon_min": -92.27,
+      "lat_min": 33.05,
+      "lon_max": -92.23,
+      "lat_max": 33.10
     }
   }'
 ```

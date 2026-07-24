@@ -112,9 +112,6 @@ maryland_deploy.py
 submit_ar_s2_bbox_download.sh
 submit_ar_s2_bbox_download.slurm
 
-# After the legacy data tree is removed, retain only the downloader used by
-# on-demand FastDiffSR jobs.
+# The legacy data tree remains local. Reusable download scripts live in
+# /data_download/.
 data/*
-!data/Arkansas/
-data/Arkansas/*
-!data/Arkansas/Download.py

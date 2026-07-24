@@ -751,7 +751,7 @@ def _infer_meta_patch(
 
 
 def cmd_download(args) -> int:
-    script = APP_DIR / "data" / "Arkansas" / "Download.py"
+    script = APP_DIR / "data_download" / "download_sentinel2.py"
     cmd = [sys.executable, str(script)]
     cmd += ["--project", args.project]
     cmd += ["--layout", str(getattr(args, "layout", "grid"))]
@@ -1710,7 +1710,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser("Arkansas deployment helper (download → monthly model → save preds)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    dl = sub.add_parser("download", help="Download raw data from Earth Engine (delegates to data/Arkansas/Download.py)")
+    dl = sub.add_parser(
+        "download",
+        help="Download raw data from Earth Engine (delegates to data_download/download_sentinel2.py)",
+    )
     dl.add_argument("--project", default="satelite-430703")
     dl.add_argument("--auth", action="store_true", help="Interactive ee.Authenticate() (not for cron)")
     dl.add_argument("--previous-month", action="store_true")
@@ -1742,7 +1745,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--band-preset",
         choices=("all", "rgb_scl"),
         default="all",
-        help="Band selection preset forwarded to Download.py. Use 'rgb_scl' for Model 1 dataset downloads.",
+        help="Band selection preset forwarded to download_sentinel2.py. Use 'rgb_scl' for FastDiffSR inputs.",
     )
     dl.add_argument("--download-retries", type=int, default=3, help="Max attempts for non-rate-limit export failures.")
     dl.add_argument("--download-retry-sleep-s", type=float, default=1.0, help="Base sleep between non-rate-limit retries (seconds).")
@@ -1805,7 +1808,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--band-preset",
         choices=("all", "rgb_scl"),
         default="all",
-        help="Band selection preset forwarded to Download.py. Use 'rgb_scl' for Model 1 dataset downloads.",
+        help="Band selection preset forwarded to download_sentinel2.py. Use 'rgb_scl' for FastDiffSR inputs.",
     )
     sd.add_argument("--download-retries", type=int, default=3, help="Max attempts for non-rate-limit export failures.")
     sd.add_argument("--download-retry-sleep-s", type=float, default=1.0, help="Base sleep between non-rate-limit retries (seconds).")
@@ -1873,7 +1876,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--band-preset",
         choices=("all", "rgb_scl"),
         default="all",
-        help="Band selection preset forwarded to Download.py.",
+        help="Band selection preset forwarded to download_sentinel2.py.",
     )
     mo.add_argument("--download-retries", type=int, default=3)
     mo.add_argument("--download-retry-sleep-s", type=float, default=1.0)
@@ -1916,7 +1919,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--band-preset",
         choices=("all", "rgb_scl"),
         default="all",
-        help="Band selection preset forwarded to Download.py.",
+        help="Band selection preset forwarded to download_sentinel2.py.",
     )
     ru.add_argument("--download-retries", type=int, default=3)
     ru.add_argument("--download-retry-sleep-s", type=float, default=1.0)

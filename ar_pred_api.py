@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from PIL import Image
 
 
-# Supported Arkansas ROI (same as app_AR_deploy.py / Download.py)
+# Supported Arkansas ROI (same as app_AR_deploy.py / download_sentinel2.py)
 AR_ROIG = [
     [-94.7610, 36.6652],
     [-94.7610, 32.8376],

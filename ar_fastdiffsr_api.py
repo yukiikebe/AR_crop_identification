@@ -38,7 +38,11 @@ if str(APP_DIR) not in sys.path:
 
 FASTDIFFSR_DEFAULT_CONFIG = "fastdiffsr/config/sr_fastdiffsr_infer_x4_planet.json"
 FASTDIFFSR_DATE_POLICIES = ("latest", "earliest", "all", "statewide_anchor")
-FASTDIFFSR_DEFAULT_RAW_ROOT_TEMPLATE = "runtime_data/sentinel2/AR_{year}_raw"
+# Shared HPC Sentinel-2 RGB input. This tree includes the B2/B3/B4 bands
+# required by FastDiffSR. Environment overrides keep the API portable.
+FASTDIFFSR_DEFAULT_RAW_ROOT_TEMPLATE = (
+    "/scrfs/storage/yikebe/home/AR_sentinel_align_with_Planet/AR_{year}_raw"
+)
 FASTDIFFSR_DEFAULT_EE_PROJECT = "satelite-430703"
 FASTDIFFSR_DEFAULT_CHECKPOINT = "fastdiffsr/checkpoints/I283712_E757"
 PS_SCENE_DEFAULT_ROOT = "runtime_data/planet"
@@ -2197,6 +2201,8 @@ def _download_cmd_from_job(job: dict, settings: dict) -> list[str]:
         str(int(settings["download_workers"])),
         "--cloud-thresh",
         str(float(settings["download_cloud_thresh"])),
+        "--band-preset",
+        "rgb_scl",
         "--download-retries",
         "3",
         "--download-retry-sleep-s",
