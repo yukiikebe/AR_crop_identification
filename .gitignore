@@ -77,3 +77,44 @@ fastdiffsr_preds/
 make_dataset/raw_sentinel/
 make_dataset/fastdiffsr_s2_planet_clean_v*/pairs_manifest.jsonl
 make_dataset/fastdiffsr_s2_planet_strict_brightness_filtered/pairs_manifest.filtered.jsonl
+
+# Deployment models are intentionally versioned. FastDiffSR uses Git LFS.
+!fastdiffsr/checkpoints/
+!fastdiffsr/checkpoints/I283712_E757_gen.pth
+!harvest_estimation/models/
+!harvest_estimation/models/**/*.pt
+
+# Legacy/local work directories kept out of the deployment repository.
+/FastDiffSR/
+/configs/
+/doc/
+/hro_naip_downloads/
+/metrics/
+/models/
+/mn_fastdiffsr_ortho_tmp15/
+/make_dataset/
+/saved_models/
+/train_and_eval/
+/utils/
+/runtime_data/
+/tmp/
+
+# Locally retained legacy files removed from the deployment Git index.
+.codex
+.gitmodules
+VegIndexPro.py
+annual_seasonal_vis.py
+ar_api.py
+ar_download.yml
+deepsatmodels_crop_id.yml
+deepsatmodels_env.yml
+maryland_deploy.py
+submit_ar_s2_bbox_download.sh
+submit_ar_s2_bbox_download.slurm
+
+# After the legacy data tree is removed, retain only the downloader used by
+# on-demand FastDiffSR jobs.
+data/*
+!data/Arkansas/
+data/Arkansas/*
+!data/Arkansas/Download.py

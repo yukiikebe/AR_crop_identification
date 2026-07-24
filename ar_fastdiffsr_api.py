@@ -36,15 +36,12 @@ os.chdir(APP_DIR)
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
-FASTDIFFSR_DEFAULT_CONFIG = "FastDiffSR/FastDiffSR/config/sr_fastdiffsr_infer_x4_planet.json"
+FASTDIFFSR_DEFAULT_CONFIG = "fastdiffsr/config/sr_fastdiffsr_infer_x4_planet.json"
 FASTDIFFSR_DATE_POLICIES = ("latest", "earliest", "all", "statewide_anchor")
-FASTDIFFSR_DEFAULT_RAW_ROOT_TEMPLATE = "../../AR_sentinel2/{year}_AR"
+FASTDIFFSR_DEFAULT_RAW_ROOT_TEMPLATE = "runtime_data/sentinel2/AR_{year}_raw"
 FASTDIFFSR_DEFAULT_EE_PROJECT = "satelite-430703"
-FASTDIFFSR_DEFAULT_CHECKPOINT = (
-    "/home/yuki/research/AR_Crop_Identification/FastDiffSR/FastDiffSR/experiments/"
-    "sr_fastdiffsr_train_64_256_Planet_260220_163421/checkpoint/I283712_E757"
-)
-PS_SCENE_DEFAULT_ROOT = "/home/yuki/PSScene"
+FASTDIFFSR_DEFAULT_CHECKPOINT = "fastdiffsr/checkpoints/I283712_E757"
+PS_SCENE_DEFAULT_ROOT = "runtime_data/planet"
 
 # Must match Arkansas bounds used by ar_pred_api.py/app_AR_deploy.py
 AR_LON_MIN = -94.7610
@@ -444,7 +441,7 @@ def _resolve_fastdiffsr_resume_state(checkpoint_path: str) -> str:
 
 
 def _build_fastdiffsr_model(config_path: str, resume_state: str, device_ids: list) -> object:
-    fastdiffsr_root = APP_DIR / "FastDiffSR" / "FastDiffSR"
+    fastdiffsr_root = APP_DIR / "fastdiffsr"
     if not fastdiffsr_root.exists():
         raise SystemExit(f"FastDiffSR code root not found: {fastdiffsr_root}")
 
@@ -2211,6 +2208,34 @@ def _download_cmd_from_job(job: dict, settings: dict) -> list[str]:
     return cmd
 
 
+def _download_subprocess_env(settings: dict) -> dict[str, str]:
+    """Give geemap/matplotlib the Conda runtime libraries without changing the API process."""
+    child_env = os.environ.copy()
+    runtime_prefix = Path(sys.executable).resolve().parent.parent
+    runtime_lib = runtime_prefix / "lib"
+    if runtime_lib.is_dir():
+        existing_library_path = child_env.get("LD_LIBRARY_PATH", "").strip()
+        library_parts = [str(runtime_lib)]
+        if existing_library_path:
+            library_parts.append(existing_library_path)
+        child_env["LD_LIBRARY_PATH"] = os.pathsep.join(library_parts)
+
+        libgomp = runtime_lib / "libgomp.so.1"
+        if libgomp.is_file():
+            existing_preload = child_env.get("LD_PRELOAD", "").strip()
+            preload_parts = [str(libgomp)]
+            if existing_preload:
+                preload_parts.append(existing_preload)
+            child_env["LD_PRELOAD"] = " ".join(preload_parts)
+
+    child_env.setdefault("MKL_THREADING_LAYER", "GNU")
+    child_env.setdefault("OMP_NUM_THREADS", "1")
+    matplotlib_cache = Path(str(settings["out_root"])) / "_cache" / "matplotlib"
+    matplotlib_cache.mkdir(parents=True, exist_ok=True)
+    child_env.setdefault("MPLCONFIGDIR", str(matplotlib_cache))
+    return child_env
+
+
 def _ensure_raw_month_downloaded(*, job: dict, settings: dict, raw_root: Path) -> None:
     if raw_root.exists():
         job["phase"] = "generating_sr"
@@ -2225,6 +2250,7 @@ def _ensure_raw_month_downloaded(*, job: dict, settings: dict, raw_root: Path) -
         cwd=str(APP_DIR),
         capture_output=True,
         text=True,
+        env=_download_subprocess_env(settings),
     )
     if proc.returncode != 0:
         stderr = (proc.stderr or "").strip()

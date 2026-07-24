@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from __future__ import annotations
-
 import argparse
 import calendar
 import importlib
@@ -77,7 +75,7 @@ STATEWIDE_REQUIRED_BANDS = [
     "TCI_B",
 ]
 
-FASTDIFFSR_DEFAULT_CONFIG = "FastDiffSR/FastDiffSR/config/sr_fastdiffsr_test_64_256.json"
+FASTDIFFSR_DEFAULT_CONFIG = "fastdiffsr/config/sr_fastdiffsr_infer_x4_planet.json"
 _TQDM_IMPORT_WARNED = False
 
 
@@ -134,7 +132,7 @@ def _resolve_fastdiffsr_resume_state(checkpoint_path: str | Path) -> str:
 
 
 def _build_fastdiffsr_model(*, config_path: str, resume_state: str, device_ids: list[int]):
-    fastdiffsr_root = APP_DIR / "FastDiffSR" / "FastDiffSR"
+    fastdiffsr_root = APP_DIR / "fastdiffsr"
     if not fastdiffsr_root.exists():
         raise SystemExit(f"FastDiffSR code root not found: {fastdiffsr_root}")
 
@@ -1721,7 +1719,7 @@ def build_parser() -> argparse.ArgumentParser:
     dl.add_argument("--whole-year", action="store_true")
     dl.add_argument("--start-day")
     dl.add_argument("--end-day")
-    dl.add_argument("--data-root", default="/mnt/vhvkhoa_ssd/datasets")
+    dl.add_argument("--data-root", default="runtime_data/sentinel2")
     dl.add_argument(
         "--roi-bbox",
         default=None,
@@ -1781,7 +1779,7 @@ def build_parser() -> argparse.ArgumentParser:
     sd.add_argument("--whole-year", action="store_true")
     sd.add_argument("--start-day")
     sd.add_argument("--end-day")
-    sd.add_argument("--data-root", default="/mnt/vhvkhoa_ssd/datasets")
+    sd.add_argument("--data-root", default="runtime_data/sentinel2")
     sd.add_argument(
         "--roi-bbox",
         default=None,
@@ -1857,7 +1855,7 @@ def build_parser() -> argparse.ArgumentParser:
     mo = sub.add_parser("monthly", help="Run previous-month download + predictions (safe for cron)")
     mo.add_argument("--project", default="satelite-430703")
     mo.add_argument("--auth", action="store_true", help="Interactive ee.Authenticate() (not for cron)")
-    mo.add_argument("--data-root", default="/mnt/vhvkhoa_ssd/datasets")
+    mo.add_argument("--data-root", default="runtime_data/sentinel2")
     mo.add_argument(
         "--roi-bbox",
         default=None,
@@ -1900,7 +1898,7 @@ def build_parser() -> argparse.ArgumentParser:
     ru.add_argument("--auth", action="store_true", help="Interactive ee.Authenticate() (not for cron)")
     ru.add_argument("--year", type=int, required=True)
     ru.add_argument("--month", type=int, required=True, choices=range(1, 13))
-    ru.add_argument("--data-root", default="/mnt/vhvkhoa_ssd/datasets")
+    ru.add_argument("--data-root", default="runtime_data/sentinel2")
     ru.add_argument(
         "--roi-bbox",
         default=None,

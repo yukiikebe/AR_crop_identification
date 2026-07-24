@@ -34,8 +34,7 @@ DEFAULT_GRID_TARGET_WIDTH_DEG = 0.25
 DEFAULT_GRID_TARGET_HEIGHT_DEG = 0.25
 DEFAULT_GRID_MAX_SPLITS_PER_AXIS = 20
 
-DEFAULT_DATA_ROOT = "/mnt/vhvkhoa_ssd/datasets"
-LEGACY_DATA_DIR = "/home/khoavo/Desktop/workplace/satelite/raw_arkansas/2023_all/"
+DEFAULT_DATA_ROOT = "runtime_data/sentinel2"
 
 ALL_REQUIRED_BANDS: dict[str, tuple[int, str]] = {
     # band -> (scale_meters, ext)
@@ -943,8 +942,7 @@ def _compute_data_dir(*, data_dir: str | None, data_root: str | None, start_day:
     if data_root:
         return os.path.join(data_root, f"AR_{start_year}_raw")
 
-    # Fallback for legacy paths (keeps old behavior if /mnt/... is not available)
-    return LEGACY_DATA_DIR
+    return os.path.join(DEFAULT_DATA_ROOT, f"AR_{start_year}_raw")
 
 
 def _compute_statewide_dir(*, statewide_dir: str | None, data_root: str | None, start_day: str) -> str:
@@ -955,7 +953,7 @@ def _compute_statewide_dir(*, statewide_dir: str | None, data_root: str | None, 
     if data_root:
         return os.path.join(data_root, f"AR_{start_year}_statewide")
 
-    return os.path.join(LEGACY_DATA_DIR, "..", f"AR_{start_year}_statewide")
+    return os.path.join(DEFAULT_DATA_ROOT, f"AR_{start_year}_statewide")
 
 
 def export_statewide_month(

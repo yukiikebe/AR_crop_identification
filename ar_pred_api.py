@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from PIL import Image
 
 
-# Supported Arkansas ROI (same as app_AR.py / Download.py)
+# Supported Arkansas ROI (same as app_AR_deploy.py / Download.py)
 AR_ROIG = [
     [-94.7610, 36.6652],
     [-94.7610, 32.8376],
@@ -160,7 +160,7 @@ def health():
 
 @app.get("/info")
 def info():
-    pred_root = os.environ.get("DEEPSAT_AR_PRED_ROOT", "/mnt/vhvkhoa_ssd/datasets")
+    pred_root = os.environ.get("DEEPSAT_AR_PRED_ROOT", "runtime_data/predictions")
     return {
         "pred_root": pred_root,
         "supported_region": {
@@ -176,7 +176,7 @@ def info():
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
-    pred_root = os.environ.get("DEEPSAT_AR_PRED_ROOT", "/mnt/vhvkhoa_ssd/datasets")
+    pred_root = os.environ.get("DEEPSAT_AR_PRED_ROOT", "runtime_data/predictions")
 
     if req.model_month is not None:
         model_month = int(req.model_month)

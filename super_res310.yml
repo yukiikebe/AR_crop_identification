@@ -1,22 +1,30 @@
 name: super_res310
 channels:
+  - pytorch
+  - nvidia
   - conda-forge
-  - bioconda
-  - defaults
 dependencies:
-  - cudatoolkit
-  - ipython
-  - lmdb
+  - python=3.10
+  - numpy<2
   - matplotlib
   - pandas
-  - pip
-  - python=3.10
+  - pillow
   - pyyaml
   - rasterio
-  - scikit-learn
-  - tensorboard
-  - tifffile
+  - pytorch=2.4
+  - torchvision=0.19
+  - pytorch-cuda=12.4
   - tqdm
-  - python-blosc2
-  - numpy[version='<2']
-prefix: /home/yikebe/.conda/envs/super_res310
+  - pip
+  - pip:
+      - earthengine-api>=1.4
+      - einops>=0.8
+      - fastapi>=0.115
+      - folium>=0.19
+      - geemap>=0.35
+      - opencv-python-headless>=4.10
+      - pydantic>=2.10
+      - requests>=2.32
+      - streamlit>=1.40
+      - streamlit-folium>=0.24
+      - uvicorn[standard]>=0.34

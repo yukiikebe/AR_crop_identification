@@ -33,10 +33,11 @@ AR_LAT_MAX = max(AR_ROIG[0][1], AR_ROIG[2][1])
 AR_BOUNDS = [[AR_LAT_MIN, AR_LON_MIN], [AR_LAT_MAX, AR_LON_MAX]]
 AR_CENTER = [(AR_LAT_MIN + AR_LAT_MAX) / 2.0, (AR_LON_MIN + AR_LON_MAX) / 2.0]
 GRID_N = 20
+HARVEST_DEFAULT_REGION = (-92.28006055531158, 32.90381728267215, -89.88049449231089, 34.75315095485688)
 
 
 def _ps_scene_root() -> Path:
-    root = os.getenv("DEEPSAT_PS_SCENE_ROOT", "").strip() or "/home/yuki/PSScene"
+    root = os.getenv("DEEPSAT_PS_SCENE_ROOT", "").strip() or "runtime_data/planet"
     return Path(os.path.expanduser(os.path.expandvars(root)))
 
 
@@ -174,17 +175,22 @@ def _grid_edges(v_min: float, v_max: float, n: int) -> list[float]:
     return [float(v_min) + step * i for i in range(int(n) + 1)]
 
 
-def _meta_patch_bounds(i: int, j: int) -> tuple[float, float, float, float]:
-    lon_edges = _grid_edges(AR_LON_MIN, AR_LON_MAX, GRID_N)
-    lat_edges = _grid_edges(AR_LAT_MIN, AR_LAT_MAX, GRID_N)
+def _meta_patch_bounds(
+    i: int,
+    j: int,
+    region: tuple[float, float, float, float],
+) -> tuple[float, float, float, float]:
+    lon_min, lat_min, lon_max, lat_max = region
+    lon_edges = _grid_edges(lon_min, lon_max, GRID_N)
+    lat_edges = _grid_edges(lat_min, lat_max, GRID_N)
     return lon_edges[i], lat_edges[j], lon_edges[i + 1], lat_edges[j + 1]
 
 
-def _add_tile_grid_debug_overlay(m) -> None:
+def _add_tile_grid_debug_overlay(m, region: tuple[float, float, float, float]) -> None:
     grid_layer = folium.FeatureGroup(name="Tile Grid Debug", overlay=True, control=True)
     for i in range(GRID_N):
         for j in range(GRID_N):
-            lon_min, lat_min, lon_max, lat_max = _meta_patch_bounds(i, j)
+            lon_min, lat_min, lon_max, lat_max = _meta_patch_bounds(i, j, region)
             folium.Rectangle(
                 bounds=[[lat_min, lon_min], [lat_max, lon_max]],
                 color="#111111",
@@ -321,7 +327,16 @@ class SingleRectangleDraw(Draw):
     )
 
 
-def _get_map(*, show_tile_grid_debug: bool = False):
+def _get_map(
+    *,
+    region: tuple[float, float, float, float],
+    supported_region_label: str,
+    show_tile_grid_debug: bool = False,
+    show_planet_coverage: bool = False,
+):
+    lon_min, lat_min, lon_max, lat_max = region
+    map_bounds = [[lat_min, lon_min], [lat_max, lon_max]]
+    map_center = [(lat_min + lat_max) / 2.0, (lon_min + lon_max) / 2.0]
     if MAPBOX_TOKEN:
         tiles_url = (
             "https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}"
@@ -332,23 +347,30 @@ def _get_map(*, show_tile_grid_debug: bool = False):
         tiles_url = "OpenStreetMap"
         attr = "OpenStreetMap"
     m = folium.Map(
-        location=AR_CENTER,
+        location=map_center,
         zoom_start=8,
         tiles=tiles_url,
         attr=attr,
-        min_lat=AR_LAT_MIN,
-        max_lat=AR_LAT_MAX,
-        min_lon=AR_LON_MIN,
-        max_lon=AR_LON_MAX,
+        min_lat=lat_min,
+        max_lat=lat_max,
+        min_lon=lon_min,
+        max_lon=lon_max,
         max_bounds=True,
     )
-    folium.Rectangle(bounds=AR_BOUNDS, color="#ff4b4b", weight=2, fill=False, tooltip="Supported region").add_to(m)
-    _add_ps_scene_overlay(m)
+    folium.Rectangle(
+        bounds=map_bounds,
+        color="#ff4b4b",
+        weight=2,
+        fill=False,
+        tooltip=supported_region_label,
+    ).add_to(m)
+    if bool(show_planet_coverage):
+        _add_ps_scene_overlay(m)
     if bool(show_tile_grid_debug):
-        _add_tile_grid_debug_overlay(m)
-    if bool(show_tile_grid_debug) or bool(_load_ps_scene_features()):
+        _add_tile_grid_debug_overlay(m, region)
+    if bool(show_tile_grid_debug) or (bool(show_planet_coverage) and bool(_load_ps_scene_features())):
         folium.LayerControl(collapsed=False).add_to(m)
-    m.fit_bounds(AR_BOUNDS)
+    m.fit_bounds(map_bounds)
     SingleRectangleDraw(
         export=True,
         draw_options={
@@ -428,6 +450,30 @@ def _api_predict_fastdiffsr(
             pass
         raise RuntimeError(f"{resp.status_code} {msg}")
     return int(resp.status_code), resp.json()
+
+
+def _api_predict_harvest(*, backend_url: str, year: int, bbox, timeout_s: int = 600):
+    url = backend_url.rstrip("/") + "/predict"
+    payload = {
+        "year": int(year),
+        "bbox": {
+            "lon_min": float(bbox[0]),
+            "lat_min": float(bbox[1]),
+            "lon_max": float(bbox[2]),
+            "lat_max": float(bbox[3]),
+        },
+    }
+    resp = requests.post(url, json=payload, timeout=int(timeout_s))
+    if resp.status_code >= 400:
+        msg = resp.text
+        try:
+            detail = (resp.json() or {}).get("detail")
+            if isinstance(detail, str):
+                msg = detail
+        except Exception:
+            pass
+        raise RuntimeError(f"{resp.status_code} {msg}")
+    return resp.json()
 
 
 def _api_fastdiffsr_job_status(
@@ -625,6 +671,73 @@ def _check_fastdiffsr_backend(*, backend_url: str, timeout_s: int = 5) -> tuple[
     return True, "OK"
 
 
+def _check_harvest_backend(*, backend_url: str, timeout_s: int = 5) -> tuple[bool, str, dict]:
+    try:
+        resp = requests.get(backend_url.rstrip("/") + "/info", timeout=int(timeout_s))
+    except Exception as exc:
+        return False, f"Cannot reach backend at {backend_url}: {exc}", {}
+    if resp.status_code != 200:
+        return False, f"Backend {backend_url} does not expose /info (status={resp.status_code}).", {}
+    try:
+        data = resp.json() or {}
+    except Exception:
+        return False, f"Backend {backend_url} /info did not return JSON.", {}
+    if data.get("model") != "hybrid" or "available_years" not in data:
+        return False, f"Backend {backend_url} /info is not the expected schema for ar_harvest_api.py.", data
+    if not bool(data.get("ready", False)):
+        return False, "Harvest backend is not ready. Check the model and input roots.", data
+    return True, "OK", data
+
+
+def _render_harvest_result(resp: dict) -> None:
+    rows = resp.get("predictions") or []
+    if not rows:
+        st.info("No harvest predictions were returned for this region.")
+        return
+
+    df = pd.DataFrame(rows)
+    table = pd.DataFrame(
+        {
+            "Crop": df["crop"],
+            "Harvest start": df["harvest_start_date"],
+            "Harvest end": df["harvest_end_date"],
+            "Start DOY": df["start_doy"],
+            "End DOY": df["end_doy"],
+            "Tiles": df["tiles_with_crop"],
+            "Start range (P10-P90)": df["start_date_p10"] + " to " + df["start_date_p90"],
+            "End range (P10-P90)": df["end_date_p10"] + " to " + df["end_date_p90"],
+            "Test MAE (days)": df["model_test_mae_days"],
+        }
+    )
+    st.subheader(f"Harvest estimates for {int(resp.get('year'))}")
+    st.caption(
+        f"{len(table)} crops across {int(resp.get('tiles_with_inputs', 0))} intersecting tiles. "
+        "Dates are the median tile prediction; ranges show spatial variation."
+    )
+    _st_dataframe_compat(table)
+    st.download_button(
+        "Download harvest estimates (CSV)",
+        data=table.to_csv(index=False).encode("utf-8"),
+        file_name=f"harvest_estimates_{int(resp.get('year'))}.csv",
+        mime="text/csv",
+    )
+    st.caption(str(resp.get("training_note") or ""))
+    with st.expander("About these columns"):
+        st.markdown(
+            """
+- **Crop**: A crop with sufficient time-series observations and a corresponding model in the selected region.
+- **Harvest start / Harvest end**: The median predicted harvest start and end dates across the included tiles.
+- **Start DOY / End DOY**: Day of year, where January 1 is day 1. For example, DOY 32 is February 1.
+- **Tiles**: The number of Arkansas 20x20 grid tiles where the crop had enough data for inference.
+- **Start range (P10-P90)**: The 10th-to-90th percentile range of harvest-start predictions across tiles.
+- **End range (P10-P90)**: The 10th-to-90th percentile range of harvest-end predictions across tiles.
+- **Test MAE (days)**: The model's mean absolute error on the archived 2023 test data. It is not an error estimate for the currently selected region.
+
+P10-P90 describes variation between tiles, not a statistical confidence interval. When **Tiles** is 1, the median and P10-P90 dates are identical. Crop presence and aggregation are evaluated at the grid-tile level, so crops elsewhere in a tile intersecting the drawn rectangle may be included.
+            """
+        )
+
+
 def _init_app_state() -> None:
     st.session_state.setdefault("ar_sr_active_request", None)
     st.session_state.setdefault("ar_sr_job", None)
@@ -642,12 +755,17 @@ def _clear_sr_state() -> None:
 def app():
     _init_app_state()
     st.title("Arkansas Crop-ID (deployment)")
-    st.caption("Draw a rectangle inside Arkansas, then choose Crop Identification or Super Resolution.")
+    st.caption("Choose an analysis task, then draw a rectangle inside its highlighted supported region.")
 
     with st.sidebar:
         st.subheader("Query")
-        task = st.selectbox("Task", ["Crop Identification", "Super Resolution"], index=0)
+        task = st.selectbox(
+            "Task",
+            ["Crop Identification", "Super Resolution", "Crop Harvest Estimation"],
+            index=0,
+        )
         show_tile_grid_debug = st.checkbox("Show Tile Grid Debug", value=False)
+        harvest_info = {}
 
         if task == "Crop Identification":
             backend_url_default = os.environ.get("DEEPSAT_AR_PRED_API_URL", "http://localhost:8001").strip()
@@ -657,36 +775,85 @@ def app():
             if not ok:
                 st.error(msg)
                 st.caption("Expected: `uvicorn ar_pred_api:app --port 8001`.")
-        else:
+        elif task == "Super Resolution":
             backend_url_default = os.environ.get("DEEPSAT_FASTDIFFSR_API_URL", "http://localhost:8002").strip()
             backend_url = st.text_input("SR Backend URL (env: DEEPSAT_FASTDIFFSR_API_URL)", value=backend_url_default).strip()
             ok, msg = _check_fastdiffsr_backend(backend_url=backend_url)
             if not ok:
                 st.error(msg)
                 st.caption("Expected: `uvicorn ar_fastdiffsr_api:app --port 8002`.")
+        else:
+            backend_url_default = os.environ.get("DEEPSAT_HARVEST_API_URL", "http://localhost:8003").strip()
+            backend_url = st.text_input(
+                "Harvest Backend URL (env: DEEPSAT_HARVEST_API_URL)",
+                value=backend_url_default,
+            ).strip()
+            ok, msg, harvest_info = _check_harvest_backend(backend_url=backend_url)
+            if not ok:
+                st.error(msg)
+                st.caption("Expected: `uvicorn ar_harvest_api:app --port 8003`.")
 
-        default_year = int(os.environ.get("DEEPSAT_AR_DEFAULT_YEAR", "2024"))
+        default_year_fallback = "2023" if task == "Crop Harvest Estimation" else "2024"
+        default_year = int(os.environ.get("DEEPSAT_AR_DEFAULT_YEAR", default_year_fallback))
         default_month = int(os.environ.get("DEEPSAT_AR_DEFAULT_MONTH", str(datetime.utcnow().month)))
-        year = st.number_input("Year", min_value=2000, max_value=2100, value=default_year, step=1)
-        month = st.selectbox("Available month (1-12)", list(range(1, 13)), index=max(0, min(11, default_month - 1)))
+        harvest_years = [int(value) for value in harvest_info.get("available_years", [])]
+        if task == "Crop Harvest Estimation" and harvest_years:
+            year_index = harvest_years.index(default_year) if default_year in harvest_years else len(harvest_years) - 1
+            year = st.selectbox("Year", harvest_years, index=year_index)
+        else:
+            year = st.number_input("Year", min_value=2000, max_value=2100, value=default_year, step=1)
+        month = None
+        if task != "Crop Harvest Estimation":
+            month = st.selectbox("Available month (1-12)", list(range(1, 13)), index=max(0, min(11, default_month - 1)))
 
         analyze = st.button("Analyze", type="primary")
 
-    map_data = _get_map(show_tile_grid_debug=bool(show_tile_grid_debug))
+    show_planet_coverage = task == "Super Resolution"
+    map_region = (AR_LON_MIN, AR_LAT_MIN, AR_LON_MAX, AR_LAT_MAX)
+    supported_region_label = "Arkansas Crop-ID / SR coverage"
+    if task == "Crop Harvest Estimation":
+        map_region = HARVEST_DEFAULT_REGION
+        supported_region_label = "DeepSatModels harvest coverage"
+        supported_region = harvest_info.get("supported_region") or {}
+        try:
+            candidate = (
+                float(supported_region["lon_min"]),
+                float(supported_region["lat_min"]),
+                float(supported_region["lon_max"]),
+                float(supported_region["lat_max"]),
+            )
+            if candidate[0] < candidate[2] and candidate[1] < candidate[3]:
+                map_region = candidate
+        except (KeyError, TypeError, ValueError):
+            pass
+
+    map_data = _get_map(
+        region=map_region,
+        supported_region_label=supported_region_label,
+        show_tile_grid_debug=bool(show_tile_grid_debug),
+        show_planet_coverage=show_planet_coverage,
+    )
     user_roig = _get_roi(map_data)
-    ps_scene_features = _load_ps_scene_features()
+    ps_scene_features = _load_ps_scene_features() if show_planet_coverage else []
     ps_scene_bounds = _ps_scene_bounds(ps_scene_features)
     if bool(show_tile_grid_debug):
         st.caption("Tile grid debug enabled. Hover a black tile boundary to see its meta-patch id and lon/lat range.")
-    if ps_scene_bounds is not None:
+    if task == "Crop Harvest Estimation":
         st.caption(
-            "Planet coverage loaded: "
-            f"{len(ps_scene_features)} scenes | "
-            f"lon=[{ps_scene_bounds[0]:.4f}, {ps_scene_bounds[2]:.4f}] "
-            f"lat=[{ps_scene_bounds[1]:.4f}, {ps_scene_bounds[3]:.4f}]"
+            "DeepSatModels harvest coverage: "
+            f"lon=[{map_region[0]:.4f}, {map_region[2]:.4f}] "
+            f"lat=[{map_region[1]:.4f}, {map_region[3]:.4f}]"
         )
-    else:
-        st.caption("Planet coverage unavailable: no PSScene metadata loaded.")
+    if show_planet_coverage:
+        if ps_scene_bounds is not None:
+            st.caption(
+                "Planet coverage loaded: "
+                f"{len(ps_scene_features)} scenes | "
+                f"lon=[{ps_scene_bounds[0]:.4f}, {ps_scene_bounds[2]:.4f}] "
+                f"lat=[{ps_scene_bounds[1]:.4f}, {ps_scene_bounds[3]:.4f}]"
+            )
+        else:
+            st.caption("Planet coverage unavailable: no PSScene metadata loaded.")
 
     if analyze:
         if not user_roig:
@@ -747,6 +914,17 @@ def app():
                     )
 
                 _st_dataframe_compat(df[["class_id", "name", "color", "pixels", "pct"]])
+        elif task == "Crop Harvest Estimation":
+            try:
+                harvest_result = _api_predict_harvest(
+                    backend_url=backend_url,
+                    year=int(year),
+                    bbox=bbox,
+                )
+            except Exception as exc:
+                st.error(f"Harvest backend request failed: {exc}")
+                return
+            _render_harvest_result(harvest_result)
         else:
             if ps_scene_bounds is not None and not _bbox_intersects(bbox, ps_scene_bounds):
                 st.warning("Selected bbox is outside Planet PSScene coverage. SR will still run, but Planet reference will be unavailable.")
