@@ -1,0 +1,168 @@
+Corn:
+  - "07-31"
+  - "10-15"
+
+Cotton:
+  - "09-05"
+  - "11-30"
+
+Rice:
+  - "08-15"
+  - "11-01"
+
+Soybeans:
+  - "09-05"
+  - "11-30"
+
+Winter Wheat:
+  - "05-31"
+  - "07-31"
+
+# Additional Arkansas-oriented initial windows for crop types observed in
+# 2022_AR and 2023_AR CDL tiles. Major crop windows above are unchanged.
+# Minor crop windows are intentionally broad because harvest timing is more
+# variable and less consistently covered by NASS weekly progress reports.
+
+Sorghum:
+  - "08-15"
+  - "10-31"
+
+Sunflower:
+  - "08-15"
+  - "10-31"
+
+Peanuts:
+  - "09-15"
+  - "11-30"
+
+Sweet Corn:
+  - "06-01"
+  - "08-31"
+
+Pop or Orn Corn:
+  - "08-15"
+  - "10-31"
+
+Barley:
+  - "05-15"
+  - "07-15"
+
+Spring Wheat:
+  - "05-31"
+  - "07-31"
+
+Dbl Crop WinWht/Soybeans:
+  - "09-05"
+  - "11-30"
+
+Rye:
+  - "05-15"
+  - "07-15"
+
+Oats:
+  - "05-15"
+  - "07-15"
+
+Millet:
+  - "08-01"
+  - "10-15"
+
+Alfalfa:
+  - "04-15"
+  - "10-31"
+
+Other Hay/Non Alfalfa:
+  - "04-15"
+  - "10-31"
+
+Potatoes:
+  - "06-01"
+  - "09-30"
+
+Other Crops:
+  - "04-15"
+  - "11-30"
+
+Sugarcane:
+  - "09-15"
+  - "12-31"
+
+Sweet Potatoes:
+  - "08-15"
+  - "11-15"
+
+Watermelons:
+  - "06-15"
+  - "08-31"
+
+Onions:
+  - "05-15"
+  - "07-31"
+
+Peas:
+  - "05-01"
+  - "09-30"
+
+Tomatoes:
+  - "06-01"
+  - "10-15"
+
+Herbs:
+  - "05-01"
+  - "10-31"
+
+Switchgrass:
+  - "07-01"
+  - "10-31"
+
+Peaches:
+  - "05-15"
+  - "08-31"
+
+Pecans:
+  - "10-01"
+  - "12-15"
+
+Triticale:
+  - "05-15"
+  - "07-15"
+
+Greens:
+  - "04-01"
+  - "11-30"
+
+Squash:
+  - "05-15"
+  - "10-15"
+
+Dbl Crop WinWht/Corn:
+  - "07-31"
+  - "10-15"
+
+Pumpkins:
+  - "09-01"
+  - "10-31"
+
+Dbl Crop WinWht/Sorghum:
+  - "08-15"
+  - "10-31"
+
+Dbl Crop WinWht/Cotton:
+  - "09-05"
+  - "11-30"
+
+Dbl Crop Soybeans/Oats:
+  - "05-15"
+  - "11-30"
+
+Dbl Crop Corn/Soybeans:
+  - "09-05"
+  - "11-30"
+
+Blueberries:
+  - "05-15"
+  - "07-31"
+
+Cabbage:
+  - "04-15"
+  - "11-15"

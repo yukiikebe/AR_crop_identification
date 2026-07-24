@@ -1,0 +1,24 @@
+Corn:
+  window_start: "03-15"
+  window_end: "04-30"
+  offset_days: 10
+
+Rice:
+  window_start: "03-20"
+  window_end: "04-30"
+  offset_days: 14
+
+Soybeans:
+  window_start: "04-01"
+  window_end: "05-20"
+  offset_days: 7
+
+Cotton:
+  window_start: "04-15"
+  window_end: "05-20"
+  offset_days: 10
+
+Winter Wheat:
+  window_start: "02-01"
+  window_end: "04-25"
+  offset_days:

@@ -21,6 +21,43 @@ from rasterio.merge import merge
 
 
 DEFAULT_EE_PROJECT = "satelite-430703"
+
+# WGS84 rectangular envelopes, stored as [NW, SW, NE, SE].
+#
+# FastDiffSR training source (PlanetScope, not Sentinel-2):
+# union bounds of the 500 georeferenced PlanetScope scenes referenced by the
+# training-data preparation record. The derived 256 px training patches no
+# longer retain georeferencing.
+# --roi-bbox=-92.3017581016,34.7471457771,-89.8853046962,36.5201148678
+FASTDIFFSR_TRAIN_ROIG = [
+    [-92.3017581016, 36.5201148678],
+    [-92.3017581016, 34.7471457771],
+    [-89.8853046962, 36.5201148678],
+    [-89.8853046962, 34.7471457771],
+]
+
+# Harvest-estimation training/support footprint from right_bottom_ar.json and
+# its source GeoTIFF.
+# --roi-bbox=-92.2800605553,32.9038172827,-89.8804944923,34.7531509549
+HARVEST_TRAIN_ROIG = [
+    [-92.2800605553, 34.7531509549],
+    [-92.2800605553, 32.9038172827],
+    [-89.8804944923, 34.7531509549],
+    [-89.8804944923, 32.9038172827],
+]
+
+# Smallest rectangular download ROI containing both training footprints.
+# --roi-bbox=-92.3017581016,32.9038172827,-89.8804944923,36.5201148678
+COMBINED_TRAIN_ROIG = [
+    [-92.3017581016, 36.5201148678],
+    [-92.3017581016, 32.9038172827],
+    [-89.8804944923, 36.5201148678],
+    [-89.8804944923, 32.9038172827],
+]
+
+# The default remains the larger Arkansas bounding box so a shared download
+# also supports inference outside the two model-training footprints.
+# --roi-bbox=-94.7610,32.8376,-89.5522,36.6652
 DEFAULT_ROIG = [
     [-94.7610, 36.6652],
     [-94.7610, 32.8376],
@@ -286,6 +323,12 @@ def _compute_grid_split_counts(
     target_height_deg: float,
     max_splits_per_axis: int,
 ) -> tuple[int, int]:
+    # Existing Arkansas FastDiffSR/Harvest datasets use the legacy 20x20 grid.
+    # Preserve it for the default ROI so new months can be appended to those
+    # shared <year>_AR directories. Custom ROIs retain adaptive grid sizing.
+    if roig == DEFAULT_ROIG and int(max_splits_per_axis) >= 20:
+        return 20, 20
+
     lon_min, lat_min, lon_max, lat_max = _bbox_from_roig(roig)
     width_deg = max(0.0, float(lon_max) - float(lon_min))
     height_deg = max(0.0, float(lat_max) - float(lat_min))

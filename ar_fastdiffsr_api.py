@@ -38,10 +38,10 @@ if str(APP_DIR) not in sys.path:
 
 FASTDIFFSR_DEFAULT_CONFIG = "fastdiffsr/config/sr_fastdiffsr_infer_x4_planet.json"
 FASTDIFFSR_DATE_POLICIES = ("latest", "earliest", "all", "statewide_anchor")
-# Shared HPC Sentinel-2 RGB input. This tree includes the B2/B3/B4 bands
-# required by FastDiffSR. Environment overrides keep the API portable.
+# Shared HPC Sentinel-2 input. The <year>_AR tree is also used by Harvest and
+# includes the B2/B3/B4/SCL subset required by FastDiffSR.
 FASTDIFFSR_DEFAULT_RAW_ROOT_TEMPLATE = (
-    "/scrfs/storage/yikebe/home/AR_sentinel_align_with_Planet/AR_{year}_raw"
+    "/scrfs/storage/yikebe/home/AR_sentinel2/{year}_AR"
 )
 FASTDIFFSR_DEFAULT_EE_PROJECT = "satelite-430703"
 FASTDIFFSR_DEFAULT_CHECKPOINT = "fastdiffsr/checkpoints/I283712_E757"
@@ -341,7 +341,6 @@ def _backend_settings_for_info() -> dict:
         "auto_download": {
             "enabled": True,
             "ee_project": os.environ.get("DEEPSAT_FASTDIFFSR_EE_PROJECT", FASTDIFFSR_DEFAULT_EE_PROJECT),
-            "download_data_root": os.environ.get("DEEPSAT_FASTDIFFSR_DOWNLOAD_DATA_ROOT", ""),
             "download_workers": dl_workers,
             "download_cloud_thresh": dl_cloud,
             "download_verify": dl_verify,
@@ -392,18 +391,12 @@ def _load_backend_settings(*, year: int, month: int) -> dict:
         "blank_frac_max": _parse_env_float("DEEPSAT_FASTDIFFSR_BLANK_FRAC_MAX", 0.98, min_v=0.0, max_v=1.0),
         "force": _parse_env_bool("DEEPSAT_FASTDIFFSR_FORCE", False),
         "ee_project": str(os.environ.get("DEEPSAT_FASTDIFFSR_EE_PROJECT", FASTDIFFSR_DEFAULT_EE_PROJECT)).strip() or FASTDIFFSR_DEFAULT_EE_PROJECT,
-        "download_data_root": None,
         "download_workers": _parse_env_int("DEEPSAT_FASTDIFFSR_DOWNLOAD_WORKERS", 4, min_v=1, max_v=128),
         "download_cloud_thresh": _parse_env_float("DEEPSAT_FASTDIFFSR_DOWNLOAD_CLOUD_THRESH", 20.0, min_v=0.0, max_v=100.0),
         "download_verify": _parse_env_bool("DEEPSAT_FASTDIFFSR_DOWNLOAD_VERIFY", True),
         "download_strict": _parse_env_bool("DEEPSAT_FASTDIFFSR_DOWNLOAD_STRICT", True),
         "download_fast_skip": _parse_env_bool("DEEPSAT_FASTDIFFSR_DOWNLOAD_FAST_SKIP", True),
     }
-    dl_root_env = str(os.environ.get("DEEPSAT_FASTDIFFSR_DOWNLOAD_DATA_ROOT", "")).strip()
-    if dl_root_env:
-        settings["download_data_root"] = _resolve_path(dl_root_env)
-    else:
-        settings["download_data_root"] = Path(settings["raw_root"]).parent
     return settings
 
 
@@ -1053,7 +1046,6 @@ def _job_settings_signature(settings: dict) -> dict:
         "blank_frac_max": float(settings.get("blank_frac_max", 0.98)),
         "force": bool(settings["force"]),
         "ee_project": str(settings.get("ee_project", FASTDIFFSR_DEFAULT_EE_PROJECT)),
-        "download_data_root": str(settings.get("download_data_root", "")),
         "download_workers": int(settings.get("download_workers", 4)),
         "download_cloud_thresh": float(settings.get("download_cloud_thresh", 20.0)),
         "download_verify": bool(settings.get("download_verify", True)),
@@ -2184,28 +2176,27 @@ def _build_planet_preview_for_bbox(*, bbox: tuple[float, float, float, float]) -
 
 
 def _download_cmd_from_job(job: dict, settings: dict) -> list[str]:
-    data_root = Path(str(settings["download_data_root"]))
+    raw_root = Path(str(settings["raw_root"]))
     cmd = [
         sys.executable,
-        str(APP_DIR / "ar_deploy.py"),
-        "download",
+        str(APP_DIR / "data_download" / "download_sentinel2.py"),
         "--project",
         str(settings["ee_project"]),
         "--year",
         str(job["year"]),
         "--month",
         str(job["month"]),
-        "--data-root",
-        str(data_root),
-        "--download-workers",
+        "--data-dir",
+        str(raw_root),
+        "--workers",
         str(int(settings["download_workers"])),
         "--cloud-thresh",
         str(float(settings["download_cloud_thresh"])),
         "--band-preset",
-        "rgb_scl",
-        "--download-retries",
+        "all",
+        "--retries",
         "3",
-        "--download-retry-sleep-s",
+        "--retry-sleep-s",
         "1.0",
         "--verify" if bool(settings["download_verify"]) else "--no-verify",
         "--strict" if bool(settings["download_strict"]) else "--no-strict",
@@ -2242,10 +2233,31 @@ def _download_subprocess_env(settings: dict) -> dict[str, str]:
     return child_env
 
 
+def _raw_root_has_month(raw_root: Path, *, year: int, month: int) -> bool:
+    """Return whether the shared <year>_AR tree contains any date in the month."""
+    if not raw_root.is_dir():
+        return False
+
+    prefix = f"{int(year):04d}-{int(month):02d}-"
+    for grid_dir in raw_root.iterdir():
+        if not grid_dir.is_dir() or re.fullmatch(r"\d+_\d+", grid_dir.name) is None:
+            continue
+        if any(path.is_dir() and path.name.startswith(prefix) for path in grid_dir.iterdir()):
+            return True
+    return False
+
+
 def _ensure_raw_month_downloaded(*, job: dict, settings: dict, raw_root: Path) -> None:
-    if raw_root.exists():
+    if _raw_root_has_month(
+        raw_root,
+        year=int(job["year"]),
+        month=int(job["month"]),
+    ):
         job["phase"] = "generating_sr"
-        job["phase_message"] = f"Raw data already exists: {raw_root}"
+        job["phase_message"] = (
+            f"Shared raw data already contains {int(job['year']):04d}-"
+            f"{int(job['month']):02d}: {raw_root}"
+        )
         _update_job(job)
         return
 
@@ -2267,10 +2279,17 @@ def _ensure_raw_month_downloaded(*, job: dict, settings: dict, raw_root: Path) -
         _finish_job(job, state="failed")
         raise RuntimeError(msg)
 
-    if not raw_root.exists():
-        msg = f"raw_root not found after download: {raw_root}"
+    if not _raw_root_has_month(
+        raw_root,
+        year=int(job["year"]),
+        month=int(job["month"]),
+    ):
+        msg = (
+            f"raw_root contains no data for {int(job['year']):04d}-"
+            f"{int(job['month']):02d} after download: {raw_root}"
+        )
         job.setdefault("errors", []).append(msg)
-        job["phase_message"] = "Raw data download finished but expected directory was not created."
+        job["phase_message"] = "Raw data download finished but the requested month was not created."
         _finish_job(job, state="failed")
         raise RuntimeError(msg)
 
@@ -3013,7 +3032,6 @@ def predict(req: FastDiffSRPredictRequest):
         "blank_frac_max": float(settings.get("blank_frac_max", 0.98)),
         "force": bool(settings["force"]),
         "ee_project": str(settings["ee_project"]),
-        "download_data_root": str(settings["download_data_root"]),
         "download_workers": int(settings["download_workers"]),
         "download_cloud_thresh": float(settings["download_cloud_thresh"]),
         "download_verify": bool(settings["download_verify"]),

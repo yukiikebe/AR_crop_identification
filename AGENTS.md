@@ -13,7 +13,7 @@
 This project is Python/Conda-first.
 - Create env: `conda env create -f deepsatmodels_env.yml && conda activate deepsatmodels`
 - Train: `python train_and_eval/segmentation_training_transf.py --config configs/Arkansas/TSViT_AR23_11mo_focal.yaml`
-- Deploy one month: `python ar_deploy.py run --project <gcp-project> --data-root <DATA_ROOT> --year 2025 --month 6`
+- Download one month: `python data_download/download_sentinel2.py --project <gcp-project> --year 2025 --month 6 --band-preset all --data-dir <DATA_ROOT>/2025_AR`
 - Run API: `uvicorn ar_pred_api:app --host 0.0.0.0 --port 8001`
 - Run UI: `streamlit run app_AR_deploy.py`
 
@@ -31,4 +31,3 @@ There is no automated test suite. Before merging, run the affected entrypoint en
 - Prefer `type(scope): summary` (e.g., `deploy(ar): add bbox query`).
 - PRs should include: intent, config path(s), and exact reproduction commands.
 - Do not commit datasets, predictions, `wandb/`, or model checkpoints (`models/saved_models/` is ignored). Avoid committing tokens/credentials; set `DEEPSAT_MAPBOX_TOKEN` locally if needed.
-

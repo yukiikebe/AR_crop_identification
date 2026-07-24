@@ -6,10 +6,9 @@ import importlib
 import json
 import os
 import re
-import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 
 import numpy as np
@@ -354,14 +353,6 @@ def _month_range(year: int, month: int) -> tuple[str, str]:
     last_day = calendar.monthrange(year, month)[1]
     end = date(year, month, last_day)
     return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
-
-
-def _previous_month_range(today: date | None = None) -> tuple[str, str]:
-    today = today or date.today()
-    first_this = date(today.year, today.month, 1)
-    last_prev = first_this - timedelta(days=1)
-    start_prev = date(last_prev.year, last_prev.month, 1)
-    return start_prev.strftime("%Y-%m-%d"), last_prev.strftime("%Y-%m-%d")
 
 
 def _max_doy_for_month(year: int, month: int) -> int:
@@ -748,67 +739,6 @@ def _infer_meta_patch(
     )
     with rasterio.open(out_fp, "w", **profile) as dst:
         dst.write(pred_mosaic, 1)
-
-
-def cmd_download(args) -> int:
-    script = APP_DIR / "data_download" / "download_sentinel2.py"
-    cmd = [sys.executable, str(script)]
-    cmd += ["--project", args.project]
-    cmd += ["--layout", str(getattr(args, "layout", "grid"))]
-    cmd += ["--composite", str(getattr(args, "composite", "none"))]
-    roi_bbox = getattr(args, "roi_bbox", None)
-    if roi_bbox:
-        # Keep negative longitudes/latitudes attached to the option so argparse
-        # does not mistake them for new flags in the downstream script.
-        cmd += [f"--roi-bbox={roi_bbox}"]
-    if args.previous_month:
-        cmd += ["--previous-month"]
-    if args.year is not None:
-        cmd += ["--year", str(args.year)]
-    if args.month is not None:
-        cmd += ["--month", str(args.month)]
-    if args.whole_year:
-        cmd += ["--whole-year"]
-    if args.start_day and args.end_day:
-        cmd += ["--start-day", args.start_day, "--end-day", args.end_day]
-    cmd += ["--data-root", args.data_root]
-    statewide_dir = getattr(args, "statewide_dir", None)
-    if statewide_dir:
-        cmd += ["--statewide-dir", str(statewide_dir)]
-    cmd += ["--month-tag-day", str(int(getattr(args, "month_tag_day", 15)))]
-    cmd += ["--statewide-split", str(int(getattr(args, "statewide_split", 2)))]
-    cmd += ["--grid-target-width-deg", str(getattr(args, "grid_target_width_deg", 0.25))]
-    cmd += ["--grid-target-height-deg", str(getattr(args, "grid_target_height_deg", 0.25))]
-    cmd += ["--grid-max-splits-per-axis", str(getattr(args, "grid_max_splits_per_axis", 20))]
-    cmd += ["--workers", str(args.download_workers)]
-    cmd += ["--cloud-thresh", str(args.cloud_thresh)]
-    if getattr(args, "max_scl_cloud_ratio", None) is not None:
-        cmd += ["--max-scl-cloud-ratio", str(args.max_scl_cloud_ratio)]
-    if getattr(args, "max_black_ratio", None) is not None:
-        cmd += ["--max-black-ratio", str(args.max_black_ratio)]
-    cmd += ["--black-threshold", str(getattr(args, "black_threshold", 0))]
-    cmd += ["--band-preset", str(getattr(args, "band_preset", "all"))]
-    cmd += ["--retries", str(args.download_retries)]
-    cmd += ["--retry-sleep-s", str(args.download_retry_sleep_s)]
-    cmd += ["--rate-limit-retries", str(args.download_rate_limit_retries)]
-    cmd += ["--backoff-base-s", str(args.download_backoff_base_s)]
-    cmd += ["--backoff-max-s", str(args.download_backoff_max_s)]
-    cmd += ["--retry-jitter-s", str(args.download_retry_jitter_s)]
-    cmd += ["--verify" if args.download_verify else "--no-verify"]
-    cmd += ["--strict" if args.download_strict else "--no-strict"]
-    cmd += ["--fast-skip" if args.download_fast_skip else "--no-fast-skip"]
-    if args.auth:
-        cmd += ["--auth"]
-
-    print("Running:", " ".join(cmd))
-    return subprocess.call(cmd)
-
-
-def cmd_statewide_download(args) -> int:
-    dl_args = argparse.Namespace(**vars(args))
-    dl_args.layout = "statewide"
-    dl_args.composite = "monthly"
-    return cmd_download(dl_args)
 
 
 def cmd_predict(args) -> int:
@@ -1598,243 +1528,9 @@ def cmd_fastdiffsr_mosaic(args) -> int:
                 pass
 
 
-def cmd_monthly(args) -> int:
-    start_day, end_day = _previous_month_range()
-    year = _parse_ymd(start_day).year
-    month = _parse_ymd(end_day).month
-
-    # 1) Download previous month
-    dl_args = argparse.Namespace(
-        project=args.project,
-        auth=args.auth,
-        previous_month=True,
-        year=None,
-        month=None,
-        whole_year=False,
-        start_day=None,
-        end_day=None,
-        data_root=args.data_root,
-        roi_bbox=getattr(args, "roi_bbox", None),
-        download_workers=args.download_workers,
-        cloud_thresh=args.cloud_thresh,
-        download_retries=args.download_retries,
-        download_retry_sleep_s=args.download_retry_sleep_s,
-        download_rate_limit_retries=args.download_rate_limit_retries,
-        download_backoff_base_s=args.download_backoff_base_s,
-        download_backoff_max_s=args.download_backoff_max_s,
-        download_retry_jitter_s=args.download_retry_jitter_s,
-        download_verify=args.download_verify,
-        download_strict=args.download_strict,
-        download_fast_skip=args.download_fast_skip,
-    )
-    rc = cmd_download(dl_args)
-    if rc != 0:
-        return rc
-
-    # 2) Predict using the model matching available months
-    raw_root = Path(args.data_root) / f"AR_{year}_raw"
-    pred_root = Path(args.data_root) / f"AR_{year}_preds"
-
-    pred_args = argparse.Namespace(
-        year=year,
-        available_month=month,
-        raw_root=str(raw_root),
-        pred_root=str(pred_root),
-        config=args.config,
-        checkpoint=args.checkpoint,
-        device=args.device,
-        batch_size=args.batch_size,
-        tile_size=args.tile_size,
-        force=args.force,
-        meta_patches=args.meta_patches,
-    )
-    return cmd_predict(pred_args)
-
-
-def cmd_run(args) -> int:
-    """
-    One-shot run for a specific (year, month):
-      1) download that calendar month
-      2) if month >= 6, run the corresponding 6..11mo model and save preds
-    """
-    year = int(args.year)
-    month = int(args.month)
-
-    dl_args = argparse.Namespace(
-        project=args.project,
-        auth=args.auth,
-        previous_month=False,
-        year=year,
-        month=month,
-        whole_year=False,
-        start_day=None,
-        end_day=None,
-        data_root=args.data_root,
-        roi_bbox=getattr(args, "roi_bbox", None),
-        download_workers=args.download_workers,
-        cloud_thresh=args.cloud_thresh,
-        download_retries=args.download_retries,
-        download_retry_sleep_s=args.download_retry_sleep_s,
-        download_rate_limit_retries=args.download_rate_limit_retries,
-        download_backoff_base_s=args.download_backoff_base_s,
-        download_backoff_max_s=args.download_backoff_max_s,
-        download_retry_jitter_s=args.download_retry_jitter_s,
-        download_verify=args.download_verify,
-        download_strict=args.download_strict,
-        download_fast_skip=args.download_fast_skip,
-    )
-    rc = cmd_download(dl_args)
-    if rc != 0:
-        return rc
-
-    raw_root = Path(args.data_root) / f"AR_{year}_raw"
-    pred_root = Path(args.data_root) / f"AR_{year}_preds"
-
-    pred_args = argparse.Namespace(
-        year=year,
-        available_month=month,
-        raw_root=str(raw_root),
-        pred_root=str(pred_root),
-        config=args.config,
-        checkpoint=args.checkpoint,
-        device=args.device,
-        batch_size=args.batch_size,
-        tile_size=args.tile_size,
-        force=args.force,
-        meta_patches=args.meta_patches,
-    )
-    return cmd_predict(pred_args)
-
-
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser("Arkansas deployment helper (download → monthly model → save preds)")
+    p = argparse.ArgumentParser("Arkansas prediction and FastDiffSR utility CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
-
-    dl = sub.add_parser(
-        "download",
-        help="Download raw data from Earth Engine (delegates to data_download/download_sentinel2.py)",
-    )
-    dl.add_argument("--project", default="satelite-430703")
-    dl.add_argument("--auth", action="store_true", help="Interactive ee.Authenticate() (not for cron)")
-    dl.add_argument("--previous-month", action="store_true")
-    dl.add_argument("--year", type=int)
-    dl.add_argument("--month", type=int)
-    dl.add_argument("--whole-year", action="store_true")
-    dl.add_argument("--start-day")
-    dl.add_argument("--end-day")
-    dl.add_argument("--data-root", default="runtime_data/sentinel2")
-    dl.add_argument(
-        "--roi-bbox",
-        default=None,
-        help="Optional ROI bbox override as min_lon,min_lat,max_lon,max_lat. Defaults to the Arkansas bbox.",
-    )
-    dl.add_argument(
-        "--download-workers",
-        type=int,
-        default=4,
-        help="Parallel download workers. Grid mode uses a multiprocessing pool; statewide mode uses parallel export workers. Lower values may help avoid rate limits on large ROIs.",
-    )
-    dl.add_argument("--grid-target-width-deg", type=float, default=0.25)
-    dl.add_argument("--grid-target-height-deg", type=float, default=0.25)
-    dl.add_argument("--grid-max-splits-per-axis", type=int, default=20)
-    dl.add_argument("--cloud-thresh", type=float, default=20)
-    dl.add_argument("--max-scl-cloud-ratio", type=float, default=None)
-    dl.add_argument("--max-black-ratio", type=float, default=None)
-    dl.add_argument("--black-threshold", type=int, default=0)
-    dl.add_argument(
-        "--band-preset",
-        choices=("all", "rgb_scl"),
-        default="all",
-        help="Band selection preset forwarded to download_sentinel2.py. Use 'rgb_scl' for FastDiffSR inputs.",
-    )
-    dl.add_argument("--download-retries", type=int, default=3, help="Max attempts for non-rate-limit export failures.")
-    dl.add_argument("--download-retry-sleep-s", type=float, default=1.0, help="Base sleep between non-rate-limit retries (seconds).")
-    dl.add_argument("--download-rate-limit-retries", type=int, default=8, help="Max attempts for 429/rate-limit export failures.")
-    dl.add_argument("--download-backoff-base-s", type=float, default=5.0, help="Initial automatic backoff for 429/rate-limit retries (seconds).")
-    dl.add_argument("--download-backoff-max-s", type=float, default=120.0, help="Maximum automatic backoff for 429/rate-limit retries (seconds).")
-    dl.add_argument("--download-retry-jitter-s", type=float, default=1.0, help="Random jitter added to automatic 429/rate-limit backoff (seconds).")
-    dl.add_argument(
-        "--download-verify",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Verify all expected files exist after download.",
-    )
-    dl.add_argument(
-        "--download-strict",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Fail if verification finds missing files.",
-    )
-    dl.add_argument(
-        "--download-fast-skip",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="If a previous run marked a grid complete, skip EE calls and only do local verification.",
-    )
-    dl.set_defaults(func=cmd_download)
-
-    sd = sub.add_parser("statewide_download", help="Download Arkansas statewide monthly Sentinel-2 mosaics")
-    sd.add_argument("--project", default="satelite-430703")
-    sd.add_argument("--auth", action="store_true", help="Interactive ee.Authenticate() (not for cron)")
-    sd.add_argument("--previous-month", action="store_true")
-    sd.add_argument("--year", type=int)
-    sd.add_argument("--month", type=int)
-    sd.add_argument("--whole-year", action="store_true")
-    sd.add_argument("--start-day")
-    sd.add_argument("--end-day")
-    sd.add_argument("--data-root", default="runtime_data/sentinel2")
-    sd.add_argument(
-        "--roi-bbox",
-        default=None,
-        help="Optional ROI bbox override as min_lon,min_lat,max_lon,max_lat. Defaults to the Arkansas bbox.",
-    )
-    sd.add_argument("--statewide-dir", default=None, help="Optional override for AR_<year>_statewide")
-    sd.add_argument("--month-tag-day", type=int, default=15, help="Pseudo day recorded for downstream retile (default: 15)")
-    sd.add_argument("--statewide-split", type=int, default=2, help="Split statewide export into NxN subregions before merge (default: 2)")
-    sd.add_argument(
-        "--download-workers",
-        type=int,
-        default=max(1, min(8, os.cpu_count() or 8)),
-        help="Parallel download workers. Grid mode uses a multiprocessing pool; statewide mode uses parallel export workers. Lower values may help avoid rate limits on large ROIs.",
-    )
-    sd.add_argument("--grid-target-width-deg", type=float, default=0.25)
-    sd.add_argument("--grid-target-height-deg", type=float, default=0.25)
-    sd.add_argument("--grid-max-splits-per-axis", type=int, default=20)
-    sd.add_argument("--cloud-thresh", type=float, default=20)
-    sd.add_argument("--max-scl-cloud-ratio", type=float, default=None)
-    sd.add_argument("--max-black-ratio", type=float, default=None)
-    sd.add_argument("--black-threshold", type=int, default=0)
-    sd.add_argument(
-        "--band-preset",
-        choices=("all", "rgb_scl"),
-        default="all",
-        help="Band selection preset forwarded to download_sentinel2.py. Use 'rgb_scl' for FastDiffSR inputs.",
-    )
-    sd.add_argument("--download-retries", type=int, default=3, help="Max attempts for non-rate-limit export failures.")
-    sd.add_argument("--download-retry-sleep-s", type=float, default=1.0, help="Base sleep between non-rate-limit retries (seconds).")
-    sd.add_argument("--download-rate-limit-retries", type=int, default=8, help="Max attempts for 429/rate-limit export failures.")
-    sd.add_argument("--download-backoff-base-s", type=float, default=5.0, help="Initial automatic backoff for 429/rate-limit retries (seconds).")
-    sd.add_argument("--download-backoff-max-s", type=float, default=120.0, help="Maximum automatic backoff for 429/rate-limit retries (seconds).")
-    sd.add_argument("--download-retry-jitter-s", type=float, default=1.0, help="Random jitter added to automatic 429/rate-limit backoff (seconds).")
-    sd.add_argument(
-        "--download-verify",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Verify all expected files exist after download.",
-    )
-    sd.add_argument(
-        "--download-strict",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Fail if verification finds missing files.",
-    )
-    sd.add_argument(
-        "--download-fast-skip",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="If a previous run marked a month complete, skip EE calls and only do local verification.",
-    )
-    sd.set_defaults(func=cmd_statewide_download)
 
     pr = sub.add_parser("predict", help="Run batch inference and save GeoTIFF preds for one year/month")
     pr.add_argument("--year", type=int, required=True)
@@ -1844,7 +1540,7 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="How many months of data are available (1-12). Selects model=min(max(m,6),11).",
     )
-    pr.add_argument("--raw-root", required=True, help="Path to AR_<year>_raw")
+    pr.add_argument("--raw-root", required=True, help="Path to the shared <year>_AR Sentinel-2 directory")
     pr.add_argument("--pred-root", required=True, help="Output dir (will write <MM>mo/<meta_patch>.tif)")
     pr.add_argument("--config", default=None)
     pr.add_argument("--checkpoint", default=None)
@@ -1855,94 +1551,10 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--meta-patches", nargs="*", default=None, help="Optional subset like '0_0 0_1 ...'")
     pr.set_defaults(func=cmd_predict)
 
-    mo = sub.add_parser("monthly", help="Run previous-month download + predictions (safe for cron)")
-    mo.add_argument("--project", default="satelite-430703")
-    mo.add_argument("--auth", action="store_true", help="Interactive ee.Authenticate() (not for cron)")
-    mo.add_argument("--data-root", default="runtime_data/sentinel2")
-    mo.add_argument(
-        "--roi-bbox",
-        default=None,
-        help="Optional ROI bbox override as min_lon,min_lat,max_lon,max_lat. Defaults to the Arkansas bbox.",
-    )
-    mo.add_argument("--download-workers", type=int, default=4)
-    mo.add_argument("--grid-target-width-deg", type=float, default=0.25)
-    mo.add_argument("--grid-target-height-deg", type=float, default=0.25)
-    mo.add_argument("--grid-max-splits-per-axis", type=int, default=20)
-    mo.add_argument("--cloud-thresh", type=float, default=20)
-    mo.add_argument("--max-scl-cloud-ratio", type=float, default=None)
-    mo.add_argument("--max-black-ratio", type=float, default=None)
-    mo.add_argument("--black-threshold", type=int, default=0)
-    mo.add_argument(
-        "--band-preset",
-        choices=("all", "rgb_scl"),
-        default="all",
-        help="Band selection preset forwarded to download_sentinel2.py.",
-    )
-    mo.add_argument("--download-retries", type=int, default=3)
-    mo.add_argument("--download-retry-sleep-s", type=float, default=1.0)
-    mo.add_argument("--download-rate-limit-retries", type=int, default=8)
-    mo.add_argument("--download-backoff-base-s", type=float, default=5.0)
-    mo.add_argument("--download-backoff-max-s", type=float, default=120.0)
-    mo.add_argument("--download-retry-jitter-s", type=float, default=1.0)
-    mo.add_argument("--download-verify", action=argparse.BooleanOptionalAction, default=True)
-    mo.add_argument("--download-strict", action=argparse.BooleanOptionalAction, default=True)
-    mo.add_argument("--download-fast-skip", action=argparse.BooleanOptionalAction, default=True)
-    mo.add_argument("--config", default=None)
-    mo.add_argument("--checkpoint", default=None)
-    mo.add_argument("--device", default="0")
-    mo.add_argument("--batch-size", type=int, default=64)
-    mo.add_argument("--tile-size", type=int, default=24)
-    mo.add_argument("--force", action="store_true")
-    mo.add_argument("--meta-patches", nargs="*", default=None)
-    mo.set_defaults(func=cmd_monthly)
-
-    ru = sub.add_parser("run", help="Download a specific (year, month) and (if month>=6) run predictions")
-    ru.add_argument("--project", default="satelite-430703")
-    ru.add_argument("--auth", action="store_true", help="Interactive ee.Authenticate() (not for cron)")
-    ru.add_argument("--year", type=int, required=True)
-    ru.add_argument("--month", type=int, required=True, choices=range(1, 13))
-    ru.add_argument("--data-root", default="runtime_data/sentinel2")
-    ru.add_argument(
-        "--roi-bbox",
-        default=None,
-        help="Optional ROI bbox override as min_lon,min_lat,max_lon,max_lat. Defaults to the Arkansas bbox.",
-    )
-    ru.add_argument("--download-workers", type=int, default=4)
-    ru.add_argument("--grid-target-width-deg", type=float, default=0.25)
-    ru.add_argument("--grid-target-height-deg", type=float, default=0.25)
-    ru.add_argument("--grid-max-splits-per-axis", type=int, default=20)
-    ru.add_argument("--cloud-thresh", type=float, default=20)
-    ru.add_argument("--max-scl-cloud-ratio", type=float, default=None)
-    ru.add_argument("--max-black-ratio", type=float, default=None)
-    ru.add_argument("--black-threshold", type=int, default=0)
-    ru.add_argument(
-        "--band-preset",
-        choices=("all", "rgb_scl"),
-        default="all",
-        help="Band selection preset forwarded to download_sentinel2.py.",
-    )
-    ru.add_argument("--download-retries", type=int, default=3)
-    ru.add_argument("--download-retry-sleep-s", type=float, default=1.0)
-    ru.add_argument("--download-rate-limit-retries", type=int, default=8)
-    ru.add_argument("--download-backoff-base-s", type=float, default=5.0)
-    ru.add_argument("--download-backoff-max-s", type=float, default=120.0)
-    ru.add_argument("--download-retry-jitter-s", type=float, default=1.0)
-    ru.add_argument("--download-verify", action=argparse.BooleanOptionalAction, default=True)
-    ru.add_argument("--download-strict", action=argparse.BooleanOptionalAction, default=True)
-    ru.add_argument("--download-fast-skip", action=argparse.BooleanOptionalAction, default=True)
-    ru.add_argument("--config", default=None)
-    ru.add_argument("--checkpoint", default=None)
-    ru.add_argument("--device", default="0")
-    ru.add_argument("--batch-size", type=int, default=64)
-    ru.add_argument("--tile-size", type=int, default=24)
-    ru.add_argument("--force", action="store_true")
-    ru.add_argument("--meta-patches", nargs="*", default=None)
-    ru.set_defaults(func=cmd_run)
-
     fd = sub.add_parser("fastdiffsr", help="Run FastDiffSR super-resolution on selected meta-patches and save GeoTIFFs")
     fd.add_argument("--year", type=int, required=True)
     fd.add_argument("--month", type=int, required=True, choices=range(1, 13))
-    fd.add_argument("--raw-root", required=True, help="Path to AR_<year>_raw")
+    fd.add_argument("--raw-root", required=True, help="Path to the shared <year>_AR Sentinel-2 directory")
     fd.add_argument("--sr-root", required=True, help="Output root (writes <MM>mo/<meta_patch>.tif)")
     fd.add_argument("--fastdiffsr-config", default=FASTDIFFSR_DEFAULT_CONFIG)
     fd.add_argument(
@@ -1972,7 +1584,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     fi.add_argument("--year", type=int, required=True)
     fi.add_argument("--month", type=int, required=True, choices=range(1, 13))
-    fi.add_argument("--raw-root", required=True, help="Path to AR_<year>_raw")
+    fi.add_argument("--raw-root", required=True, help="Path to the shared <year>_AR Sentinel-2 directory")
     fi.add_argument("--sr-root", required=True, help="Output root (expects <MM>mo/<meta_patch>.tif)")
     fi.add_argument("--fastdiffsr-config", default=FASTDIFFSR_DEFAULT_CONFIG)
     fi.add_argument(
@@ -2045,7 +1657,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Retile a statewide monthly Arkansas mosaic back into the canonical raw 20x20 grid layout",
     )
     sr.add_argument("--in-dir", required=True, help="Input statewide month dir containing band files like B2_2025-06.tif")
-    sr.add_argument("--out-root", required=True, help="Output AR_<year>_raw root")
+    sr.add_argument("--out-root", required=True, help="Output shared <year>_AR Sentinel-2 directory")
     sr.add_argument("--year", type=int, required=True)
     sr.add_argument("--month", type=int, required=True, choices=range(1, 13))
     sr.add_argument("--grid-n", type=int, default=AR_GRID_N, help="Arkansas grid size per axis (default: 20)")

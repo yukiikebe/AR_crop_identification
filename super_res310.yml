@@ -11,6 +11,7 @@ dependencies:
   - pillow
   - pyyaml
   - rasterio
+  - scipy
   - pytorch=2.4
   - torchvision=0.19
   - pytorch-cuda=12.4
@@ -25,6 +26,11 @@ dependencies:
       - opencv-python-headless>=4.10
       - pydantic>=2.10
       - requests>=2.32
-      - streamlit>=1.40
-      - streamlit-folium>=0.24
+      - altair>=6.2
+      - pydeck>=0.9
+      - python-multipart>=0.0.32
+      - streamlit>=1.60
+      - streamlit-folium>=0.26
+      - tenacity>=9.1
       - uvicorn[standard]>=0.34
+      - watchdog>=6.0
