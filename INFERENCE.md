@@ -207,7 +207,7 @@ Start only the services you need.
 ### Crop Identification API
 
 ```bash
-export DEEPSAT_AR_PRED_ROOT=/local/data/predictions
+export DEEPSAT_AR_PRED_ROOT=/path/to/predictions
 python -m uvicorn ar_pred_api:app --host 0.0.0.0 --port 8001
 ```
 
@@ -217,7 +217,7 @@ python -m uvicorn ar_pred_api:app --host 0.0.0.0 --port 8001
 unset LD_LIBRARY_PATH
 export MKL_THREADING_LAYER=GNU
 export OMP_NUM_THREADS=1
-export DEEPSAT_FASTDIFFSR_RAW_ROOT_TEMPLATE='/local/data/sentinel2/{year}_AR'
+export DEEPSAT_FASTDIFFSR_RAW_ROOT_TEMPLATE='/path/to/sentinel2/{year}_AR'
 
 python -m uvicorn ar_fastdiffsr_api:app --host 0.0.0.0 --port 8002
 ```
@@ -228,13 +228,12 @@ python -m uvicorn ar_fastdiffsr_api:app --host 0.0.0.0 --port 8002
 unset LD_LIBRARY_PATH
 export MKL_THREADING_LAYER=GNU
 export OMP_NUM_THREADS=1
-export DEEPSAT_HARVEST_DATASET_ROOT=/local/data/sentinel2
-export DEEPSAT_HARVEST_PRED_ROOT=/local/data/harvest/predictions
+export DEEPSAT_HARVEST_PRED_ROOT=/path/to/harvest/predictions
 
 python -m uvicorn ar_harvest_api:app --host 0.0.0.0 --port 8003
 ```
 
-Harvest serves only precomputed predictions. It does not load PyTorch or run model inference while handling requests. New artifacts use their stored tile bounds; `DEEPSAT_HARVEST_DATASET_ROOT` remains the coordinate fallback for older artifacts without stored bounds.
+Harvest serves only precomputed predictions. It does not load PyTorch or run model inference while handling requests. Omit `DEEPSAT_HARVEST_PRED_ROOT` when using the default `<repository>/runtime_data/harvest_predictions` location. New artifacts use their stored tile bounds; `DEEPSAT_HARVEST_DATASET_ROOT` remains the coordinate fallback for older artifacts without stored bounds.
 
 ## Start the Streamlit interface
 

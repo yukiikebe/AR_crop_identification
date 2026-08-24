@@ -42,6 +42,18 @@ conda activate super_res310
 
 Then follow [Inference](INFERENCE.md) to configure data paths and start only the services you need.
 
+### API entry points
+
+Run each API command in a separate terminal from the repository root after activating `super_res310`. Replace `/path/to/...` with the corresponding runtime-data location:
+
+```bash
+DEEPSAT_AR_PRED_ROOT=/path/to/predictions python -m uvicorn ar_pred_api:app --host 0.0.0.0 --port 8001
+DEEPSAT_FASTDIFFSR_RAW_ROOT_TEMPLATE='/path/to/sentinel2/{year}_AR' python -m uvicorn ar_fastdiffsr_api:app --host 0.0.0.0 --port 8002
+DEEPSAT_HARVEST_PRED_ROOT=/path/to/harvest/predictions python -m uvicorn ar_harvest_api:app --host 0.0.0.0 --port 8003
+```
+
+The module paths above correspond directly to `ar_pred_api.py`, `ar_fastdiffsr_api.py`, and `ar_harvest_api.py` in the repository root. Crop Identification reads `DEEPSAT_AR_PRED_ROOT`, FastDiffSR reads `DEEPSAT_FASTDIFFSR_RAW_ROOT_TEMPLATE`, and Harvest reads `DEEPSAT_HARVEST_PRED_ROOT`. When `DEEPSAT_HARVEST_PRED_ROOT` is not set, Harvest uses `<repository>/runtime_data/harvest_predictions`, which is the default output location of `precompute_harvest_predictions.py`.
+
 ## Repository layout
 
 ```text
