@@ -99,9 +99,6 @@ Test one tile, replacing `17_10` with a grid ID in the dataset:
 
 ```bash
 conda activate super_res310
-unset LD_LIBRARY_PATH
-export MKL_THREADING_LAYER=GNU
-export OMP_NUM_THREADS=1
 
 python -m harvest_estimation.create_doy_prediction_input.main \
   --dataset-root /local/data/sentinel2/2024_AR \
@@ -194,14 +191,6 @@ cd /path/to/AR_crop_identification
 conda activate super_res310
 ```
 
-On systems where MKL and OpenMP conflict, apply these settings before starting FastDiffSR or Harvest:
-
-```bash
-unset LD_LIBRARY_PATH
-export MKL_THREADING_LAYER=GNU
-export OMP_NUM_THREADS=1
-```
-
 Start only the services you need.
 
 ### Crop Identification API
@@ -212,6 +201,8 @@ python -m uvicorn ar_pred_api:app --host 0.0.0.0 --port 8001
 ```
 
 ### FastDiffSR API
+
+If FastDiffSR reports an MKL/OpenMP library conflict in the active environment, apply the compatibility settings shown below before starting it:
 
 ```bash
 unset LD_LIBRARY_PATH
@@ -225,10 +216,6 @@ python -m uvicorn ar_fastdiffsr_api:app --host 0.0.0.0 --port 8002
 ### Harvest API
 
 ```bash
-unset LD_LIBRARY_PATH
-export MKL_THREADING_LAYER=GNU
-export OMP_NUM_THREADS=1
-
 python -m uvicorn ar_harvest_api:app --host 0.0.0.0 --port 8003
 ```
 
