@@ -10,7 +10,7 @@ This repository supports three Arkansas satellite-imagery workflows:
 
 The browser interface is `app_AR_deploy.py`, a Streamlit application that connects to any of these APIs.
 
-Harvest inference is a separate batch step. The current Harvest deployment provides 2024 predictions for the statewide Arkansas grid only. The batch artifact stores predictions together with the source grid's tile bounds, and API requests only aggregate those saved rows; they do not rerun the model.
+Harvest inference is a separate batch step. The repository includes the deployment-ready 2024 predictions for the statewide Arkansas grid. The artifact stores predictions together with the source grid's tile bounds, and API requests only aggregate those saved rows; they do not rerun or load the model.
 
 ## Workflow
 
@@ -49,10 +49,10 @@ Run each API command in a separate terminal from the repository root after activ
 ```bash
 DEEPSAT_AR_PRED_ROOT=/path/to/predictions python -m uvicorn ar_pred_api:app --host 0.0.0.0 --port 8001
 DEEPSAT_FASTDIFFSR_RAW_ROOT_TEMPLATE='/path/to/sentinel2/{year}_AR' python -m uvicorn ar_fastdiffsr_api:app --host 0.0.0.0 --port 8002
-DEEPSAT_HARVEST_PRED_ROOT=/path/to/harvest/predictions python -m uvicorn ar_harvest_api:app --host 0.0.0.0 --port 8003
+python -m uvicorn ar_harvest_api:app --host 0.0.0.0 --port 8003
 ```
 
-The module paths above correspond directly to `ar_pred_api.py`, `ar_fastdiffsr_api.py`, and `ar_harvest_api.py` in the repository root. Crop Identification reads `DEEPSAT_AR_PRED_ROOT`, FastDiffSR reads `DEEPSAT_FASTDIFFSR_RAW_ROOT_TEMPLATE`, and Harvest reads `DEEPSAT_HARVEST_PRED_ROOT`. When `DEEPSAT_HARVEST_PRED_ROOT` is not set, Harvest uses `<repository>/runtime_data/harvest_predictions`, which is the default output location of `precompute_harvest_predictions.py`.
+The module paths above correspond directly to `ar_pred_api.py`, `ar_fastdiffsr_api.py`, and `ar_harvest_api.py` in the repository root. Crop Identification reads `DEEPSAT_AR_PRED_ROOT`, FastDiffSR reads `DEEPSAT_FASTDIFFSR_RAW_ROOT_TEMPLATE`, and Harvest optionally reads `DEEPSAT_HARVEST_PRED_ROOT`. By default, Harvest uses the included `<repository>/runtime_data/harvest_predictions` artifact, so its serving process does not need the model or source rasters.
 
 ## Repository layout
 
@@ -74,6 +74,6 @@ The module paths above correspond directly to `ar_pred_api.py`, `ar_fastdiffsr_a
 └── super_res310.yml              # Deployment Conda environment
 ```
 
-Datasets, generated predictions, logs, credentials, and experiment outputs must remain outside Git. Set tokens such as `DEEPSAT_MAPBOX_TOKEN` locally when needed.
+Datasets, generated predictions, logs, credentials, and experiment outputs must remain outside Git, except for the small deployment-ready 2024 Harvest CSV and metadata under `runtime_data/harvest_predictions/2024/1year/all_indices/`. Set tokens such as `DEEPSAT_MAPBOX_TOKEN` locally when needed.
 
 FastDiffSR source is derived from [Meng-333/FastDiffSR](https://github.com/Meng-333/FastDiffSR).

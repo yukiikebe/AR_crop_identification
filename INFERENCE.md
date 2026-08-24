@@ -166,7 +166,7 @@ export DEEPSAT_FASTDIFFSR_EE_PROJECT=<earth-engine-project>
 
 ### Crop Harvest Estimation
 
-Generate the 2024 statewide Arkansas tile predictions once. This is a GPU inference job; the API does not run the model itself.
+The repository includes the deployment-ready 2024 statewide Arkansas predictions at `runtime_data/harvest_predictions/2024/1year/all_indices/`. Skip the following GPU batch step when using that artifact. Run it only to regenerate or replace the predictions; the API does not run the model itself.
 
 ```bash
 export DEEPSAT_HARVEST_DATASET_ROOT=/local/data/sentinel2
@@ -228,12 +228,11 @@ python -m uvicorn ar_fastdiffsr_api:app --host 0.0.0.0 --port 8002
 unset LD_LIBRARY_PATH
 export MKL_THREADING_LAYER=GNU
 export OMP_NUM_THREADS=1
-export DEEPSAT_HARVEST_PRED_ROOT=/path/to/harvest/predictions
 
 python -m uvicorn ar_harvest_api:app --host 0.0.0.0 --port 8003
 ```
 
-Harvest serves only precomputed predictions. It does not load PyTorch or run model inference while handling requests. Omit `DEEPSAT_HARVEST_PRED_ROOT` when using the default `<repository>/runtime_data/harvest_predictions` location. New artifacts use their stored tile bounds; `DEEPSAT_HARVEST_DATASET_ROOT` remains the coordinate fallback for older artifacts without stored bounds.
+Harvest serves the included precomputed predictions by default. It does not load PyTorch or run model inference while handling requests. Set `DEEPSAT_HARVEST_PRED_ROOT` only when predictions are stored elsewhere. New artifacts use their stored tile bounds; `DEEPSAT_HARVEST_DATASET_ROOT` remains the coordinate fallback for older artifacts without stored bounds.
 
 ## Start the Streamlit interface
 

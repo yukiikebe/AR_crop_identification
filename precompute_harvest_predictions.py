@@ -169,7 +169,7 @@ def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
             delete=False,
         ) as handle:
             temporary_path = Path(handle.name)
-            writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
+            writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS, lineterminator="\n")
             writer.writeheader()
             writer.writerows(rows)
         os.replace(temporary_path, path)
