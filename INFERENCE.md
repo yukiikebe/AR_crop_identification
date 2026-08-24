@@ -70,11 +70,11 @@ The output layout is:
 
 ## Prepare Harvest workbooks
 
-The Harvest API requires a prepared workbook and a source raster for each grid tile:
+The Harvest API currently serves 2024 only and uses the statewide Arkansas 20x20 grid. It requires a prepared workbook and a source raster for each grid tile:
 
 ```text
-<OUTPUTS_ROOT>/<year>_AR/<grid id>/harvest_summary_all_crops.xlsx
-<DATASET_ROOT>/<year>_AR/<grid id>/cdl.tif
+<OUTPUTS_ROOT>/2024_AR/<grid id>/harvest_summary_all_crops.xlsx
+<DATASET_ROOT>/2024_AR/<grid id>/cdl.tif
 ```
 
 If `cdl.tif` is absent, the API uses the first `<grid id>/*/B4_*.tif` it finds to determine the tile footprint.
@@ -82,7 +82,7 @@ If `cdl.tif` is absent, the API uses the first `<grid id>/*/B4_*.tif` it finds t
 The input year must contain Sentinel-2 bands and CDL data in this layout:
 
 ```text
-<DATASET_ROOT>/<year>_AR/
+<DATASET_ROOT>/2024_AR/
 └── <grid id>/
     ├── cdl.tif
     └── <YYYY-MM-DD>/
@@ -104,11 +104,11 @@ export MKL_THREADING_LAYER=GNU
 export OMP_NUM_THREADS=1
 
 python -m harvest_estimation.create_doy_prediction_input.main \
-  --dataset-root /local/data/sentinel2/2023_AR \
+  --dataset-root /local/data/sentinel2/2024_AR \
   --cdl-yaml harvest_estimation/configs/cdl.yaml \
   --gt-windows-yaml harvest_estimation/configs/gt_windows.yaml \
   --seeding-config-yaml harvest_estimation/configs/seeding_config.yaml \
-  --output-root /local/data/harvest/outputs/2023_AR \
+  --output-root /local/data/harvest/outputs/2024_AR \
   --all-crops \
   --no-farm \
   --no-index-images \
@@ -166,12 +166,24 @@ export DEEPSAT_FASTDIFFSR_EE_PROJECT=<earth-engine-project>
 
 ### Crop Harvest Estimation
 
+Generate the 2024 statewide Arkansas tile predictions once. This is a GPU inference job; the API does not run the model itself.
+
 ```bash
 export DEEPSAT_HARVEST_DATASET_ROOT=/local/data/sentinel2
 export DEEPSAT_HARVEST_OUTPUTS_ROOT=/local/data/harvest/outputs
+export DEEPSAT_HARVEST_PRED_ROOT=/local/data/harvest/predictions
+
+python precompute_harvest_predictions.py \
+  --years 2024 \
+  --outputs-root "$DEEPSAT_HARVEST_OUTPUTS_ROOT" \
+  --dataset-root "$DEEPSAT_HARVEST_DATASET_ROOT" \
+  --predictions-root "$DEEPSAT_HARVEST_PRED_ROOT" \
+  --device cuda
 ```
 
-The bundled code and checkpoints cover 41 crops. Override `DEEPSAT_HARVEST_CODE_ROOT` or `DEEPSAT_HARVEST_MODEL_ROOT` only when using another compatible model tree.
+The command writes `<predictions-root>/2024/<window>/<feature-set>/predictions.csv` and `metadata.json`. Metadata includes the exact WGS84 bounds of every source tile in the statewide Arkansas grid. Existing artifacts are not replaced unless `--overwrite` is passed. Override `--code-root`, `--model-root`, `--model-window`, or `--feature-set` only when generating another compatible artifact.
+
+Use `--model-dir` to select an exact compatible checkpoint leaf. To split crops across multiple visible CUDA devices, replace `--device cuda` with, for example, `--devices cuda:0 cuda:1 cuda:2 cuda:3`. Each device runs a separate worker and the final artifact is written only after every worker succeeds.
 
 ## Start the APIs
 
@@ -217,12 +229,12 @@ unset LD_LIBRARY_PATH
 export MKL_THREADING_LAYER=GNU
 export OMP_NUM_THREADS=1
 export DEEPSAT_HARVEST_DATASET_ROOT=/local/data/sentinel2
-export DEEPSAT_HARVEST_OUTPUTS_ROOT=/local/data/harvest/outputs
+export DEEPSAT_HARVEST_PRED_ROOT=/local/data/harvest/predictions
 
 python -m uvicorn ar_harvest_api:app --host 0.0.0.0 --port 8003
 ```
 
-Harvest uses CPU by default. Set `DEEPSAT_HARVEST_DEVICE=cuda:0` before startup to use a GPU.
+Harvest serves only precomputed predictions. It does not load PyTorch or run model inference while handling requests. New artifacts use their stored tile bounds; `DEEPSAT_HARVEST_DATASET_ROOT` remains the coordinate fallback for older artifacts without stored bounds.
 
 ## Start the Streamlit interface
 
@@ -263,7 +275,7 @@ curl http://localhost:8003/health
 curl http://localhost:8003/info
 ```
 
-For Harvest, `/health` confirms only that the process is running. Check `/info` and verify `ready`, `available_years`, and `checkpoint_count` before sending a prediction request.
+For Harvest, `/health` confirms only that the process is running. Check `/info` and verify that `ready` is true, `serving_mode` is `precomputed`, and the requested year appears in `available_years` before sending a prediction request.
 
 Crop Identification request:
 
@@ -310,17 +322,17 @@ Harvest request:
 curl -X POST http://localhost:8003/predict \
   -H 'Content-Type: application/json' \
   -d '{
-    "year": 2023,
+    "year": 2024,
     "bbox": {
-      "lon_min": -92.27,
-      "lat_min": 32.91,
-      "lon_max": -92.17,
-      "lat_max": 32.99
+      "lon_min": -94.64,
+      "lat_min": 32.92,
+      "lon_max": -94.62,
+      "lat_max": 32.94
     }
   }'
 ```
 
-The response reports median harvest start and end dates, P10-P90 spatial tile variation, tile counts, and the stored 2023 test MAE. P10-P90 is not a confidence interval. The API selects whole source tiles that intersect the bounding box, so crop records outside the precise box but inside those tiles can influence the aggregate. The model was trained on 2022 data and evaluated on 2023 data; treat other prepared years as extrapolation.
+The response reports median harvest start and end dates, P10-P90 spatial tile variation, tile counts, and the stored model test MAE. P10-P90 is not a confidence interval. The API selects precomputed rows for whole source tiles that intersect the bounding box, so crop records outside the precise box but inside those tiles can influence the aggregate. The available year is 2024, and its supported region is the statewide Arkansas grid reported by `/info`.
 
 ## Supported regions
 

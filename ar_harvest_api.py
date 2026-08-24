@@ -1,36 +1,30 @@
 from __future__ import annotations
 
 import calendar
+import csv
 import json
 import os
-import sys
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import date, timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict
 
 import numpy as np
 import rasterio
-import torch
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from rasterio.warp import transform_bounds
 
-
-# DeepSatModels_updated/right_bottom_ar.json and the source GeoTIFF footprint.
-HARVEST_LON_MIN = -92.28006055531158
-HARVEST_LON_MAX = -89.88049449231089
-HARVEST_LAT_MIN = 32.90381728267215
-HARVEST_LAT_MAX = 34.75315095485688
+# Crop Identification's Arkansas 20x20 grid.
+HARVEST_LON_MIN = -94.7610
+HARVEST_LON_MAX = -89.5522
+HARVEST_LAT_MIN = 32.8376
+HARVEST_LAT_MAX = 36.6652
 
 APP_DIR = Path(__file__).resolve().parent
-DEFAULT_CODE_ROOT = APP_DIR / "harvest_estimation"
-DEFAULT_MODEL_ROOT = APP_DIR / "harvest_estimation" / "models"
-# HPC deployment data shared from the project owner's storage. Environment
-# variables still take precedence, so non-HPC deployments can override these.
-DEFAULT_OUTPUTS_ROOT = Path("/scrfs/storage/yikebe/home/DeepSatModels_updated/outputs")
-DEFAULT_DATASET_ROOT = Path("/scrfs/storage/yikebe/home/AR_sentinel2")
+DEFAULT_PREDICTIONS_ROOT = APP_DIR / "runtime_data" / "harvest_predictions"
+DEFAULT_DATASET_ROOT = APP_DIR / "runtime_data" / "harvest_source"
 
 
 class BBox(BaseModel):
@@ -45,7 +39,18 @@ class HarvestRequest(BaseModel):
     bbox: BBox
 
 
-app = FastAPI(title="DeepSat Arkansas Harvest Estimation API", version="1.0")
+@dataclass(frozen=True)
+class PrecomputedPrediction:
+    year: int
+    tile: str
+    crop: str
+    start_doy: int
+    end_doy: int
+    num_observations: int | None
+    model_test_mae_days: float | None
+
+
+app = FastAPI(title="DeepSat Arkansas Harvest Estimation API", version="1.1")
 
 
 def _expanded_path(env_name: str, default: str | Path) -> Path:
@@ -55,55 +60,58 @@ def _expanded_path(env_name: str, default: str | Path) -> Path:
 
 def _settings() -> dict:
     return {
-        "code_root": _expanded_path("DEEPSAT_HARVEST_CODE_ROOT", DEFAULT_CODE_ROOT),
-        "model_root": _expanded_path("DEEPSAT_HARVEST_MODEL_ROOT", DEFAULT_MODEL_ROOT),
-        "outputs_root": _expanded_path("DEEPSAT_HARVEST_OUTPUTS_ROOT", DEFAULT_OUTPUTS_ROOT),
-        "dataset_root": _expanded_path("DEEPSAT_HARVEST_DATASET_ROOT", DEFAULT_DATASET_ROOT),
+        "predictions_root": _expanded_path(
+            "DEEPSAT_HARVEST_PRED_ROOT", DEFAULT_PREDICTIONS_ROOT
+        ),
+        "dataset_root": _expanded_path(
+            "DEEPSAT_HARVEST_DATASET_ROOT", DEFAULT_DATASET_ROOT
+        ),
         "model_window": os.environ.get("DEEPSAT_HARVEST_MODEL_WINDOW", "1year").strip(),
-        "feature_set": os.environ.get("DEEPSAT_HARVEST_FEATURE_SET", "all_indices").strip(),
-        "device": os.environ.get("DEEPSAT_HARVEST_DEVICE", "cpu").strip(),
+        "feature_set": os.environ.get(
+            "DEEPSAT_HARVEST_FEATURE_SET", "all_indices"
+        ).strip(),
     }
 
 
-def _load_external_modules(code_root: Path):
-    code_root_str = str(code_root)
-    if code_root_str not in sys.path:
-        sys.path.insert(0, code_root_str)
-    try:
-        from doy_prediction.tile_cnn_data import (
-            build_record_from_rows,
-            get_feature_names,
-            read_all_crops_workbook,
-        )
-        from doy_prediction.tile_cnn_model import normalized_to_doy
-        from doy_prediction.tile_hybrid_model import TileCNNRNNHybridRegressor
-    except Exception as exc:
-        raise RuntimeError(f"Could not import harvest model code from {code_root}: {exc}") from exc
+def _prediction_path(
+    *, predictions_root: Path, year: int, model_window: str, feature_set: str
+) -> Path:
     return (
-        build_record_from_rows,
-        get_feature_names,
-        read_all_crops_workbook,
-        normalized_to_doy,
-        TileCNNRNNHybridRegressor,
+        predictions_root
+        / str(int(year))
+        / model_window
+        / feature_set
+        / "predictions.csv"
     )
 
 
-def _available_years(outputs_root: Path) -> list[int]:
+def _metadata_path(prediction_path: Path) -> Path:
+    return prediction_path.with_name("metadata.json")
+
+
+def _available_years(
+    *, predictions_root: Path, model_window: str, feature_set: str
+) -> list[int]:
+    if not predictions_root.is_dir():
+        return []
+
     years: list[int] = []
-    if not outputs_root.is_dir():
-        return years
-    for path in outputs_root.iterdir():
-        if not path.is_dir() or not path.name.endswith("_AR"):
+    for year_dir in predictions_root.iterdir():
+        if not year_dir.is_dir():
             continue
         try:
-            years.append(int(path.name.split("_", 1)[0]))
+            year = int(year_dir.name)
         except ValueError:
             continue
+        path = _prediction_path(
+            predictions_root=predictions_root,
+            year=year,
+            model_window=model_window,
+            feature_set=feature_set,
+        )
+        if path.is_file():
+            years.append(year)
     return sorted(years)
-
-
-def _model_dir(settings: dict) -> Path:
-    return settings["model_root"] / settings["model_window"] / settings["feature_set"]
 
 
 def _tile_raster(tile_dir: Path) -> Path | None:
@@ -114,13 +122,18 @@ def _tile_raster(tile_dir: Path) -> Path | None:
 
 
 @lru_cache(maxsize=16)
-def _tile_bounds_for_year(dataset_root: str, year: int) -> tuple[tuple[str, tuple[float, float, float, float]], ...]:
+def _tile_bounds_for_year(
+    dataset_root: str, year: int
+) -> tuple[tuple[str, tuple[float, float, float, float]], ...]:
     year_dir = Path(dataset_root) / f"{int(year)}_AR"
     if not year_dir.is_dir():
         raise FileNotFoundError(f"Harvest source dataset not found: {year_dir}")
 
     bounds_by_tile: list[tuple[str, tuple[float, float, float, float]]] = []
-    for tile_dir in sorted((path for path in year_dir.iterdir() if path.is_dir()), key=lambda path: path.name):
+    for tile_dir in sorted(
+        (path for path in year_dir.iterdir() if path.is_dir()),
+        key=lambda path: path.name,
+    ):
         raster_path = _tile_raster(tile_dir)
         if raster_path is None:
             continue
@@ -147,46 +160,143 @@ def _tiles_intersecting_bbox(
     return tiles
 
 
+def _tile_bounds_from_metadata(
+    metadata: dict,
+) -> tuple[tuple[str, tuple[float, float, float, float]], ...] | None:
+    raw_bounds = metadata.get("tile_bounds_wgs84")
+    if raw_bounds is None:
+        return None
+    if not isinstance(raw_bounds, dict):
+        raise TypeError("tile_bounds_wgs84 in prediction metadata must be an object")
+
+    tile_bounds: list[tuple[str, tuple[float, float, float, float]]] = []
+    for tile, raw_values in raw_bounds.items():
+        if not isinstance(raw_values, list | tuple) or len(raw_values) != 4:
+            raise ValueError(f"Invalid WGS84 bounds for tile {tile!r}")
+        values = tuple(float(value) for value in raw_values)
+        if values[0] >= values[2] or values[1] >= values[3]:
+            raise ValueError(f"Invalid WGS84 bounds order for tile {tile!r}")
+        tile_bounds.append((str(tile), values))
+    if not tile_bounds:
+        raise ValueError("tile_bounds_wgs84 in prediction metadata is empty")
+    return tuple(sorted(tile_bounds))
+
+
+def _supported_region_from_tile_bounds(
+    tile_bounds: tuple[tuple[str, tuple[float, float, float, float]], ...],
+) -> dict[str, float]:
+    values = [bounds for _, bounds in tile_bounds]
+    return {
+        "lon_min": min(bounds[0] for bounds in values),
+        "lat_min": min(bounds[1] for bounds in values),
+        "lon_max": max(bounds[2] for bounds in values),
+        "lat_max": max(bounds[3] for bounds in values),
+    }
+
+
 def _validate_bbox(bbox: BBox) -> None:
     if bbox.lon_min >= bbox.lon_max or bbox.lat_min >= bbox.lat_max:
-        raise HTTPException(status_code=400, detail="bbox min values must be smaller than max values.")
+        raise HTTPException(
+            status_code=400, detail="bbox min values must be smaller than max values."
+        )
     if (
         bbox.lon_max < HARVEST_LON_MIN
         or bbox.lon_min > HARVEST_LON_MAX
         or bbox.lat_max < HARVEST_LAT_MIN
         or bbox.lat_min > HARVEST_LAT_MAX
     ):
-        raise HTTPException(status_code=400, detail="bbox does not intersect the DeepSatModels harvest coverage.")
+        raise HTTPException(
+            status_code=400,
+            detail="bbox does not intersect the DeepSatModels harvest coverage.",
+        )
 
 
-def _checkpoint_for_crop(model_dir: Path, crop: str) -> Path:
-    return model_dir / crop.replace("/", "_") / "best_model.pt"
+def _parse_optional_int(row: dict[str, str], names: tuple[str, ...]) -> int | None:
+    for name in names:
+        value = str(row.get(name, "")).strip()
+        if value:
+            return int(value)
+    return None
 
 
-@lru_cache(maxsize=64)
-def _load_model(checkpoint_path: str, device_name: str, code_root: str):
-    *_, model_class = _load_external_modules(Path(code_root))
-    checkpoint = torch.load(checkpoint_path, map_location=device_name, weights_only=False)
-    if checkpoint.get("model_name") != "cnn_rnn_hybrid":
-        raise RuntimeError(f"Unexpected model type in {checkpoint_path}: {checkpoint.get('model_name')}")
-    model = model_class(
-        in_channels=int(checkpoint["in_channels"]),
-        **dict(checkpoint.get("model_config") or {}),
-    )
-    model.load_state_dict(checkpoint["model_state"])
-    model.to(torch.device(device_name))
-    model.eval()
-    return model
+def _parse_optional_float(row: dict[str, str], name: str) -> float | None:
+    value = str(row.get(name, "")).strip()
+    return float(value) if value else None
 
 
-@lru_cache(maxsize=128)
-def _test_mae(metrics_path: str) -> float | None:
+@lru_cache(maxsize=16)
+def _load_predictions_cached(
+    path_str: str, modified_ns: int
+) -> tuple[PrecomputedPrediction, ...]:
+    del modified_ns
+    path = Path(path_str)
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        required = {"year", "tile", "crop", "pred_start_doy", "pred_end_doy"}
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            raise ValueError(f"Missing required columns {sorted(missing)} in {path}")
+
+        predictions: list[PrecomputedPrediction] = []
+        seen_keys: set[tuple[int, str, str]] = set()
+        for line_number, row in enumerate(reader, start=2):
+            year = int(row["year"])
+            tile = str(row["tile"]).strip()
+            crop = str(row["crop"]).strip()
+            start_doy = int(row["pred_start_doy"])
+            end_doy = int(row["pred_end_doy"])
+            if not tile or not crop:
+                raise ValueError(f"Blank tile or crop at {path}:{line_number}")
+            if not 1 <= start_doy <= 366 or not 1 <= end_doy <= 366:
+                raise ValueError(f"Invalid prediction DOY at {path}:{line_number}")
+            if start_doy > end_doy:
+                raise ValueError(
+                    f"Harvest start is after harvest end at {path}:{line_number}"
+                )
+
+            key = (year, tile, crop)
+            if key in seen_keys:
+                raise ValueError(f"Duplicate year/tile/crop row {key} in {path}")
+            seen_keys.add(key)
+            predictions.append(
+                PrecomputedPrediction(
+                    year=year,
+                    tile=tile,
+                    crop=crop,
+                    start_doy=start_doy,
+                    end_doy=end_doy,
+                    num_observations=_parse_optional_int(
+                        row,
+                        (
+                            "num_observations",
+                            "cnn_num_observations",
+                            "rnn_num_observations",
+                        ),
+                    ),
+                    model_test_mae_days=_parse_optional_float(
+                        row, "model_test_mae_days"
+                    ),
+                )
+            )
+    return tuple(predictions)
+
+
+def _load_predictions(path: Path) -> tuple[PrecomputedPrediction, ...]:
+    stat = path.stat()
+    return _load_predictions_cached(str(path), stat.st_mtime_ns)
+
+
+def _read_metadata(prediction_path: Path) -> dict:
+    path = _metadata_path(prediction_path)
+    if not path.is_file():
+        return {}
     try:
-        data = json.loads(Path(metrics_path).read_text(encoding="utf-8"))
-        value = (data.get("test_metrics") or {}).get("mae_mean")
-        return round(float(value), 1) if value is not None else None
-    except Exception:
-        return None
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Could not read prediction metadata {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise TypeError(f"Prediction metadata must contain an object: {path}")
+    return data
 
 
 def _doy_to_date(year: int, doy: int) -> str:
@@ -199,6 +309,37 @@ def _percentile(values: list[int], percentile: float) -> int:
     return int(np.rint(np.percentile(np.asarray(values, dtype=np.float32), percentile)))
 
 
+def _artifact_summaries(settings: dict, available_years: list[int]) -> dict[str, dict]:
+    summaries: dict[str, dict] = {}
+    for year in available_years:
+        path = _prediction_path(
+            predictions_root=settings["predictions_root"],
+            year=year,
+            model_window=settings["model_window"],
+            feature_set=settings["feature_set"],
+        )
+        try:
+            metadata = _read_metadata(path)
+            tile_bounds = _tile_bounds_from_metadata(metadata)
+            if tile_bounds is None:
+                tile_bounds = _tile_bounds_for_year(str(settings["dataset_root"]), year)
+            supported_region = _supported_region_from_tile_bounds(tile_bounds)
+        except (OSError, TypeError, ValueError, FileNotFoundError):
+            metadata = {}
+            tile_bounds = ()
+            supported_region = None
+        summaries[str(year)] = {
+            "model": str(metadata.get("model", "hybrid")),
+            "model_name": str(metadata.get("model_name", "cnn_rnn_hybrid")),
+            "trained_years": list(metadata.get("trained_years", [])),
+            "evaluated_years": list(metadata.get("evaluated_years", [])),
+            "supported_region": supported_region,
+            "tile_count": len(tile_bounds),
+            "ready": bool(tile_bounds),
+        }
+    return summaries
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -207,30 +348,30 @@ def health() -> dict:
 @app.get("/info")
 def info() -> dict:
     settings = _settings()
-    model_dir = _model_dir(settings)
-    available_years = _available_years(settings["outputs_root"])
-    checkpoint_count = len(list(model_dir.glob("*/best_model.pt"))) if model_dir.is_dir() else 0
+    available_years = _available_years(
+        predictions_root=settings["predictions_root"],
+        model_window=settings["model_window"],
+        feature_set=settings["feature_set"],
+    )
+    artifacts = _artifact_summaries(settings, available_years)
     return {
-        "ready": bool(
-            settings["code_root"].is_dir()
-            and settings["dataset_root"].is_dir()
-            and available_years
-            and checkpoint_count
-        ),
+        "ready": bool(available_years)
+        and all(artifact["ready"] for artifact in artifacts.values()),
+        "serving_mode": "precomputed",
+        "predictions_root": str(settings["predictions_root"]),
         "supported_region": {
             "lon_min": HARVEST_LON_MIN,
             "lat_min": HARVEST_LAT_MIN,
             "lon_max": HARVEST_LON_MAX,
             "lat_max": HARVEST_LAT_MAX,
         },
-        "coverage_source": "DeepSatModels right_bottom_ar.json; tile selection uses source GeoTIFF bounds",
+        "coverage_source": "Crop Identification Arkansas 20x20 grid; each artifact stores its source GeoTIFF bounds",
         "available_years": available_years,
+        "artifacts": artifacts,
         "model": "hybrid",
         "model_window": settings["model_window"],
         "feature_set": settings["feature_set"],
-        "checkpoint_count": checkpoint_count,
-        "trained_years": [2022],
-        "evaluated_years": [2023],
+        "prediction_file_count": len(available_years),
         "request_schema": {"year": "int", "bbox": "lon_min/lat_min/lon_max/lat_max"},
     }
 
@@ -239,20 +380,47 @@ def info() -> dict:
 def predict(request: HarvestRequest) -> dict:
     _validate_bbox(request.bbox)
     settings = _settings()
-    year_dir = settings["outputs_root"] / f"{request.year}_AR"
-    model_dir = _model_dir(settings)
-    if not year_dir.is_dir():
+    prediction_path = _prediction_path(
+        predictions_root=settings["predictions_root"],
+        year=request.year,
+        model_window=settings["model_window"],
+        feature_set=settings["feature_set"],
+    )
+    if not prediction_path.is_file():
+        available_years = _available_years(
+            predictions_root=settings["predictions_root"],
+            model_window=settings["model_window"],
+            feature_set=settings["feature_set"],
+        )
         raise HTTPException(
             status_code=404,
-            detail=f"Harvest inputs are unavailable for {request.year}. Available years: {_available_years(settings['outputs_root'])}",
+            detail=(
+                f"Precomputed harvest predictions are unavailable for {request.year} at {prediction_path}. "
+                f"Available years: {available_years}"
+            ),
         )
-    if not model_dir.is_dir():
-        raise HTTPException(status_code=503, detail=f"Hybrid model directory not found: {model_dir}")
 
     try:
-        tile_bounds = _tile_bounds_for_year(str(settings["dataset_root"]), request.year)
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        all_predictions = _load_predictions(prediction_path)
+        metadata = _read_metadata(prediction_path)
+    except (OSError, TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Invalid precomputed predictions: {exc}"
+        ) from exc
+
+    try:
+        tile_bounds = _tile_bounds_from_metadata(metadata)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Invalid precomputed prediction bounds: {exc}"
+        ) from exc
+    if tile_bounds is None:
+        try:
+            tile_bounds = _tile_bounds_for_year(
+                str(settings["dataset_root"]), request.year
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
     requested_tiles = _tiles_intersecting_bbox(request.bbox, tile_bounds)
     if not requested_tiles:
         raise HTTPException(
@@ -260,71 +428,27 @@ def predict(request: HarvestRequest) -> dict:
             detail="No source GeoTIFF tile intersects the requested bbox for this year.",
         )
 
-    try:
-        (
-            build_record_from_rows,
-            get_feature_names,
-            read_all_crops_workbook,
-            normalized_to_doy,
-            _,
-        ) = _load_external_modules(settings["code_root"])
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-
-    records_by_crop: Dict[str, list] = defaultdict(list)
-    missing_tiles: list[str] = []
-    feature_names = get_feature_names(settings["feature_set"])
-
-    for tile in requested_tiles:
-        workbook = year_dir / tile / "harvest_summary_all_crops.xlsx"
-        if not workbook.is_file():
-            missing_tiles.append(tile)
-            continue
-        try:
-            rows = read_all_crops_workbook(workbook)
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Could not read {workbook}: {exc}") from exc
-
-        grouped: Dict[str, list[dict[str, object]]] = defaultdict(list)
-        for row in rows:
-            crop = str(row.get("Crop", "")).strip()
-            if crop:
-                grouped[crop].append(row)
-
-        for crop, crop_rows in grouped.items():
-            checkpoint_path = _checkpoint_for_crop(model_dir, crop)
-            if not checkpoint_path.is_file():
-                continue
-            record = build_record_from_rows(
-                crop_rows,
-                year=request.year,
-                tile=tile,
-                crop=crop,
-                source_workbook=workbook,
-                feature_set=settings["feature_set"],
-                feature_names=feature_names,
-                min_points=2,
-                require_labels=False,
-                crop_window=None,
-            )
-            if record is not None:
-                records_by_crop[crop].append(record)
+    requested_tile_set = set(requested_tiles)
+    rows_by_crop: dict[str, list[PrecomputedPrediction]] = defaultdict(list)
+    tiles_with_predictions: set[str] = set()
+    for row in all_predictions:
+        if row.year == request.year and row.tile in requested_tile_set:
+            rows_by_crop[row.crop].append(row)
+            tiles_with_predictions.add(row.tile)
 
     predictions: list[dict] = []
-    device = torch.device(settings["device"])
-    for crop in sorted(records_by_crop):
-        records = records_by_crop[crop]
-        checkpoint_path = _checkpoint_for_crop(model_dir, crop)
-        try:
-            model = _load_model(str(checkpoint_path), str(device), str(settings["code_root"]))
-            batch = torch.from_numpy(np.stack([record.x for record in records])).float().to(device)
-            with torch.inference_mode():
-                pred_doy = normalized_to_doy(model(batch))
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Inference failed for crop={crop}: {exc}") from exc
-
-        starts = [int(value) for value in pred_doy[:, 0]]
-        ends = [int(value) for value in pred_doy[:, 1]]
+    for crop in sorted(rows_by_crop):
+        rows = rows_by_crop[crop]
+        starts = [row.start_doy for row in rows]
+        ends = [row.end_doy for row in rows]
+        observation_counts = [
+            row.num_observations for row in rows if row.num_observations is not None
+        ]
+        test_mae_values = [
+            row.model_test_mae_days
+            for row in rows
+            if row.model_test_mae_days is not None
+        ]
         start_doy = _percentile(starts, 50)
         end_doy = max(start_doy, _percentile(ends, 50))
         predictions.append(
@@ -334,35 +458,46 @@ def predict(request: HarvestRequest) -> dict:
                 "harvest_end_date": _doy_to_date(request.year, end_doy),
                 "start_doy": start_doy,
                 "end_doy": end_doy,
-                "tiles_with_crop": len(records),
+                "tiles_with_crop": len(rows),
                 "start_date_p10": _doy_to_date(request.year, _percentile(starts, 10)),
                 "start_date_p90": _doy_to_date(request.year, _percentile(starts, 90)),
                 "end_date_p10": _doy_to_date(request.year, _percentile(ends, 10)),
                 "end_date_p90": _doy_to_date(request.year, _percentile(ends, 90)),
-                "median_observations_per_tile": _percentile(
-                    [int(record.num_observations) for record in records], 50
+                "median_observations_per_tile": (
+                    _percentile([int(value) for value in observation_counts], 50)
+                    if observation_counts
+                    else None
                 ),
-                "model_test_mae_days": _test_mae(str(checkpoint_path.with_name("metrics.json"))),
+                "model_test_mae_days": round(float(test_mae_values[0]), 1)
+                if test_mae_values
+                else None,
             }
         )
 
     if not predictions:
         raise HTTPException(
             status_code=404,
-            detail="No crops with sufficient observations and a hybrid checkpoint were found in the selected region.",
+            detail="No precomputed crop predictions were found in the selected region.",
         )
 
+    missing_tiles = sorted(requested_tile_set - tiles_with_predictions)
     return {
         "year": request.year,
         "bbox": request.bbox.model_dump(),
-        "model": "hybrid",
+        "model": str(metadata.get("model", "hybrid")),
         "model_window": settings["model_window"],
         "feature_set": settings["feature_set"],
+        "serving_mode": "precomputed",
         "aggregation": "median across source GeoTIFF tiles intersecting the requested bbox",
         "requested_tiles": requested_tiles,
-        "tiles_with_inputs": len(requested_tiles) - len(missing_tiles),
+        "tiles_with_inputs": len(tiles_with_predictions),
         "missing_tiles": missing_tiles,
         "crop_count": len(predictions),
         "predictions": predictions,
-        "training_note": "The selected model was trained on 2022 and evaluated on 2023.",
+        "training_note": str(
+            metadata.get(
+                "training_note",
+                "The selected model was trained on 2022 and evaluated on 2023.",
+            )
+        ),
     }

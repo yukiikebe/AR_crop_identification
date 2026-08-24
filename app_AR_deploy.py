@@ -33,7 +33,7 @@ AR_LAT_MAX = max(AR_ROIG[0][1], AR_ROIG[2][1])
 AR_BOUNDS = [[AR_LAT_MIN, AR_LON_MIN], [AR_LAT_MAX, AR_LON_MAX]]
 AR_CENTER = [(AR_LAT_MIN + AR_LAT_MAX) / 2.0, (AR_LON_MIN + AR_LON_MAX) / 2.0]
 GRID_N = 20
-HARVEST_DEFAULT_REGION = (-92.28006055531158, 32.90381728267215, -89.88049449231089, 34.75315095485688)
+HARVEST_DEFAULT_REGION = (AR_LON_MIN, AR_LAT_MIN, AR_LON_MAX, AR_LAT_MAX)
 
 
 def _ps_scene_root() -> Path:
@@ -56,7 +56,11 @@ def _load_ps_scene_features() -> list[dict]:
 
         geom = obj.get("geometry") or {}
         coords = geom.get("coordinates") or []
-        if str(geom.get("type")) != "Polygon" or not coords or not isinstance(coords[0], list):
+        if (
+            str(geom.get("type")) != "Polygon"
+            or not coords
+            or not isinstance(coords[0], list)
+        ):
             continue
 
         ring = []
@@ -95,7 +99,9 @@ def _ps_scene_bounds(features: list[dict]) -> tuple[float, float, float, float] 
     return min(lons), min(lats), max(lons), max(lats)
 
 
-def _bbox_intersects(a: tuple[float, float, float, float], b: tuple[float, float, float, float]) -> bool:
+def _bbox_intersects(
+    a: tuple[float, float, float, float], b: tuple[float, float, float, float]
+) -> bool:
     return not (
         float(a[2]) < float(b[0])
         or float(a[0]) > float(b[2])
@@ -107,12 +113,12 @@ def _bbox_intersects(a: tuple[float, float, float, float], b: tuple[float, float
 def _major_crops_palette_rgb() -> dict[int, tuple[int, int, int]]:
     # Must match DeepSatModels/ar_pred_api.py:_make_palette_major_crops()
     return {
-        0: (0, 0, 0),         # Background
-        1: (255, 215, 0),     # Corn
-        2: (220, 20, 60),     # Cotton
-        3: (30, 144, 255),    # Rice
-        4: (34, 139, 34),     # Soybeans
-        5: (255, 140, 0),     # Winter Wheat
+        0: (0, 0, 0),  # Background
+        1: (255, 215, 0),  # Corn
+        2: (220, 20, 60),  # Cotton
+        3: (30, 144, 255),  # Rice
+        4: (34, 139, 34),  # Soybeans
+        5: (255, 140, 0),  # Winter Wheat
     }
 
 
@@ -211,7 +217,9 @@ def _add_ps_scene_overlay(m) -> None:
     if not features:
         return
 
-    layer = folium.FeatureGroup(name="Planet PSScene Coverage", overlay=True, control=True)
+    layer = folium.FeatureGroup(
+        name="Planet PSScene Coverage", overlay=True, control=True
+    )
     for feat in features:
         scene_id = str(feat.get("id") or "")
         acquired_day = str(feat.get("acquired_day") or "")
@@ -368,7 +376,9 @@ def _get_map(
         _add_ps_scene_overlay(m)
     if bool(show_tile_grid_debug):
         _add_tile_grid_debug_overlay(m, region)
-    if bool(show_tile_grid_debug) or (bool(show_planet_coverage) and bool(_load_ps_scene_features())):
+    if bool(show_tile_grid_debug) or (
+        bool(show_planet_coverage) and bool(_load_ps_scene_features())
+    ):
         folium.LayerControl(collapsed=False).add_to(m)
     m.fit_bounds(map_bounds)
     SingleRectangleDraw(
@@ -385,7 +395,9 @@ def _get_map(
     return st_folium(m, width=750, height=600)
 
 
-def _api_predict_crop_bbox(*, backend_url: str, year: int, month: int, bbox, timeout_s: int = 600):
+def _api_predict_crop_bbox(
+    *, backend_url: str, year: int, month: int, bbox, timeout_s: int = 600
+):
     url = backend_url.rstrip("/") + "/predict"
     payload = {
         "year": int(year),
@@ -416,7 +428,11 @@ def _api_predict_crop_bbox(*, backend_url: str, year: int, month: int, bbox, tim
             )
         raise RuntimeError(f"{resp.status_code} {msg}")
     data = resp.json()
-    pred_png = base64.b64decode(data["pred_png_base64"]) if data.get("pred_png_base64") else None
+    pred_png = (
+        base64.b64decode(data["pred_png_base64"])
+        if data.get("pred_png_base64")
+        else None
+    )
     return pred_png, data
 
 
@@ -484,7 +500,9 @@ def _api_fastdiffsr_job_status(
     timeout_s: int = 30,
 ):
     if status_url:
-        if str(status_url).startswith("http://") or str(status_url).startswith("https://"):
+        if str(status_url).startswith("http://") or str(status_url).startswith(
+            "https://"
+        ):
             url = str(status_url)
         else:
             url = backend_url.rstrip("/") + "/" + str(status_url).lstrip("/")
@@ -538,7 +556,9 @@ def _render_fastdiffsr_result(*, resp: dict, year: int, month: int) -> None:
                     ),
                 )
                 if raw_downsampled:
-                    st.caption(f"Raw preview downsampled for web display from {raw_native_w}x{raw_native_h}.")
+                    st.caption(
+                        f"Raw preview downsampled for web display from {raw_native_w}x{raw_native_h}."
+                    )
             elif raw_err:
                 st.warning(f"Failed to decode raw input preview image: {raw_err}")
             else:
@@ -559,19 +579,29 @@ def _render_fastdiffsr_result(*, resp: dict, year: int, month: int) -> None:
                     ),
                 )
                 if sr_downsampled:
-                    st.info(f"SR preview was downsampled for web display from {sr_native_w}x{sr_native_h}.")
+                    st.info(
+                        f"SR preview was downsampled for web display from {sr_native_w}x{sr_native_h}."
+                    )
             elif sr_err:
                 st.warning(f"Failed to decode SR preview image: {sr_err}")
             else:
-                st.info("SR preview image is not available for this response (for example, date_policy=all).")
+                st.info(
+                    "SR preview image is not available for this response (for example, date_policy=all)."
+                )
         with cols[2]:
             st.caption("Reference (Planet PSScene, 2024-08-13)")
             if planet_im is not None:
                 planet_w = int(resp.get("planet_preview_width") or 0)
                 planet_h = int(resp.get("planet_preview_height") or 0)
-                planet_native_w = int(resp.get("planet_preview_native_width") or planet_w)
-                planet_native_h = int(resp.get("planet_preview_native_height") or planet_h)
-                planet_downsampled = bool(resp.get("planet_preview_was_downsampled", False))
+                planet_native_w = int(
+                    resp.get("planet_preview_native_width") or planet_w
+                )
+                planet_native_h = int(
+                    resp.get("planet_preview_native_height") or planet_h
+                )
+                planet_downsampled = bool(
+                    resp.get("planet_preview_was_downsampled", False)
+                )
                 _st_image_compat(
                     image=planet_im,
                     caption=f"Planet reference preview (size={planet_w}x{planet_h})",
@@ -581,8 +611,12 @@ def _render_fastdiffsr_result(*, resp: dict, year: int, month: int) -> None:
                         f"Planet preview downsampled for web display from {planet_native_w}x{planet_native_h}."
                     )
                 planet_debug = resp.get("planet_preview_debug")
-                if isinstance(planet_debug, dict) and bool(planet_debug.get("partial_coverage")):
-                    st.caption("Only the PSScene-intersecting part of the selected bbox has Planet coverage.")
+                if isinstance(planet_debug, dict) and bool(
+                    planet_debug.get("partial_coverage")
+                ):
+                    st.caption(
+                        "Only the PSScene-intersecting part of the selected bbox has Planet coverage."
+                    )
             elif planet_err:
                 st.warning(f"Failed to decode Planet preview image: {planet_err}")
             else:
@@ -591,15 +625,23 @@ def _render_fastdiffsr_result(*, resp: dict, year: int, month: int) -> None:
         if sr_err:
             st.warning(f"Failed to decode SR preview image: {sr_err}")
         else:
-            st.info("SR preview image is not available for this response (for example, date_policy=all).")
+            st.info(
+                "SR preview image is not available for this response (for example, date_policy=all)."
+            )
 
     st.write(f"Output dir: `{resp.get('output_dir', '')}`")
-    st.write(f"Meta-patches requested from bbox: {int(resp.get('total_meta_patches', 0))}")
+    st.write(
+        f"Meta-patches requested from bbox: {int(resp.get('total_meta_patches', 0))}"
+    )
     st.write(f"Merged preview tiles used: {int(resp.get('preview_tile_count', 0))}")
     if resp.get("input_preview_tile_count") is not None:
-        st.write(f"Merged raw-input preview tiles used: {int(resp.get('input_preview_tile_count', 0))}")
+        st.write(
+            f"Merged raw-input preview tiles used: {int(resp.get('input_preview_tile_count', 0))}"
+        )
     if resp.get("planet_preview_tile_count") is not None:
-        st.write(f"Merged Planet preview tiles used: {int(resp.get('planet_preview_tile_count', 0))}")
+        st.write(
+            f"Merged Planet preview tiles used: {int(resp.get('planet_preview_tile_count', 0))}"
+        )
     preview_debug = resp.get("preview_debug")
     if isinstance(preview_debug, dict) and preview_debug:
         st.write("Preview debug:")
@@ -639,17 +681,25 @@ def _check_crop_backend(*, backend_url: str, timeout_s: int = 5) -> tuple[bool, 
     except Exception as exc:
         return False, f"Cannot reach backend at {backend_url}: {exc}"
     if resp.status_code != 200:
-        return False, f"Backend {backend_url} does not expose /info (status={resp.status_code})."
+        return (
+            False,
+            f"Backend {backend_url} does not expose /info (status={resp.status_code}).",
+        )
     try:
         data = resp.json() or {}
     except Exception:
         return False, f"Backend {backend_url} /info did not return JSON."
     if "supported_region" not in data or "models_supported_months" not in data:
-        return False, f"Backend {backend_url} /info is not the expected schema for ar_pred_api.py."
+        return (
+            False,
+            f"Backend {backend_url} /info is not the expected schema for ar_pred_api.py.",
+        )
     return True, "OK"
 
 
-def _check_fastdiffsr_backend(*, backend_url: str, timeout_s: int = 5) -> tuple[bool, str]:
+def _check_fastdiffsr_backend(
+    *, backend_url: str, timeout_s: int = 5
+) -> tuple[bool, str]:
     """
     Return (ok, message). We expect ar_fastdiffsr_api.py to expose GET /info.
     """
@@ -658,34 +708,54 @@ def _check_fastdiffsr_backend(*, backend_url: str, timeout_s: int = 5) -> tuple[
     except Exception as exc:
         return False, f"Cannot reach backend at {backend_url}: {exc}"
     if resp.status_code != 200:
-        return False, f"Backend {backend_url} does not expose /info (status={resp.status_code})."
+        return (
+            False,
+            f"Backend {backend_url} does not expose /info (status={resp.status_code}).",
+        )
     try:
         data = resp.json() or {}
     except Exception:
         return False, f"Backend {backend_url} /info did not return JSON."
     if "request_schema" not in data or "ready" not in data:
-        return False, f"Backend {backend_url} /info is not the expected schema for ar_fastdiffsr_api.py."
+        return (
+            False,
+            f"Backend {backend_url} /info is not the expected schema for ar_fastdiffsr_api.py.",
+        )
     if not bool(data.get("ready", False)):
         missing = data.get("missing_required_env") or []
         return False, f"SR backend is not ready. Missing required env(s): {missing}"
     return True, "OK"
 
 
-def _check_harvest_backend(*, backend_url: str, timeout_s: int = 5) -> tuple[bool, str, dict]:
+def _check_harvest_backend(
+    *, backend_url: str, timeout_s: int = 5
+) -> tuple[bool, str, dict]:
     try:
         resp = requests.get(backend_url.rstrip("/") + "/info", timeout=int(timeout_s))
     except Exception as exc:
         return False, f"Cannot reach backend at {backend_url}: {exc}", {}
     if resp.status_code != 200:
-        return False, f"Backend {backend_url} does not expose /info (status={resp.status_code}).", {}
+        return (
+            False,
+            f"Backend {backend_url} does not expose /info (status={resp.status_code}).",
+            {},
+        )
     try:
         data = resp.json() or {}
     except Exception:
         return False, f"Backend {backend_url} /info did not return JSON.", {}
     if data.get("model") != "hybrid" or "available_years" not in data:
-        return False, f"Backend {backend_url} /info is not the expected schema for ar_harvest_api.py.", data
+        return (
+            False,
+            f"Backend {backend_url} /info is not the expected schema for ar_harvest_api.py.",
+            data,
+        )
     if not bool(data.get("ready", False)):
-        return False, "Harvest backend is not ready. Check the model and input roots.", data
+        return (
+            False,
+            "Harvest backend is not ready. Check the precomputed prediction and source dataset roots.",
+            data,
+        )
     return True, "OK", data
 
 
@@ -704,7 +774,9 @@ def _render_harvest_result(resp: dict) -> None:
             "Start DOY": df["start_doy"],
             "End DOY": df["end_doy"],
             "Tiles": df["tiles_with_crop"],
-            "Start range (P10-P90)": df["start_date_p10"] + " to " + df["start_date_p90"],
+            "Start range (P10-P90)": df["start_date_p10"]
+            + " to "
+            + df["start_date_p90"],
             "End range (P10-P90)": df["end_date_p10"] + " to " + df["end_date_p90"],
             "Test MAE (days)": df["model_test_mae_days"],
         }
@@ -755,7 +827,9 @@ def _clear_sr_state() -> None:
 def app():
     _init_app_state()
     st.title("Arkansas Crop-ID (deployment)")
-    st.caption("Choose an analysis task, then draw a rectangle inside its highlighted supported region.")
+    st.caption(
+        "Choose an analysis task, then draw a rectangle inside its highlighted supported region."
+    )
 
     with st.sidebar:
         st.subheader("Query")
@@ -768,22 +842,34 @@ def app():
         harvest_info = {}
 
         if task == "Crop Identification":
-            backend_url_default = os.environ.get("DEEPSAT_AR_PRED_API_URL", "http://localhost:8001").strip()
-            backend_url = st.text_input("Crop Backend URL (env: DEEPSAT_AR_PRED_API_URL)", value=backend_url_default).strip()
+            backend_url_default = os.environ.get(
+                "DEEPSAT_AR_PRED_API_URL", "http://localhost:8001"
+            ).strip()
+            backend_url = st.text_input(
+                "Crop Backend URL (env: DEEPSAT_AR_PRED_API_URL)",
+                value=backend_url_default,
+            ).strip()
 
             ok, msg = _check_crop_backend(backend_url=backend_url)
             if not ok:
                 st.error(msg)
                 st.caption("Expected: `uvicorn ar_pred_api:app --port 8001`.")
         elif task == "Super Resolution":
-            backend_url_default = os.environ.get("DEEPSAT_FASTDIFFSR_API_URL", "http://localhost:8002").strip()
-            backend_url = st.text_input("SR Backend URL (env: DEEPSAT_FASTDIFFSR_API_URL)", value=backend_url_default).strip()
+            backend_url_default = os.environ.get(
+                "DEEPSAT_FASTDIFFSR_API_URL", "http://localhost:8002"
+            ).strip()
+            backend_url = st.text_input(
+                "SR Backend URL (env: DEEPSAT_FASTDIFFSR_API_URL)",
+                value=backend_url_default,
+            ).strip()
             ok, msg = _check_fastdiffsr_backend(backend_url=backend_url)
             if not ok:
                 st.error(msg)
                 st.caption("Expected: `uvicorn ar_fastdiffsr_api:app --port 8002`.")
         else:
-            backend_url_default = os.environ.get("DEEPSAT_HARVEST_API_URL", "http://localhost:8003").strip()
+            backend_url_default = os.environ.get(
+                "DEEPSAT_HARVEST_API_URL", "http://localhost:8003"
+            ).strip()
             backend_url = st.text_input(
                 "Harvest Backend URL (env: DEEPSAT_HARVEST_API_URL)",
                 value=backend_url_default,
@@ -794,17 +880,33 @@ def app():
                 st.caption("Expected: `uvicorn ar_harvest_api:app --port 8003`.")
 
         default_year_fallback = "2023" if task == "Crop Harvest Estimation" else "2024"
-        default_year = int(os.environ.get("DEEPSAT_AR_DEFAULT_YEAR", default_year_fallback))
-        default_month = int(os.environ.get("DEEPSAT_AR_DEFAULT_MONTH", str(datetime.utcnow().month)))
-        harvest_years = [int(value) for value in harvest_info.get("available_years", [])]
+        default_year = int(
+            os.environ.get("DEEPSAT_AR_DEFAULT_YEAR", default_year_fallback)
+        )
+        default_month = int(
+            os.environ.get("DEEPSAT_AR_DEFAULT_MONTH", str(datetime.utcnow().month))
+        )
+        harvest_years = [
+            int(value) for value in harvest_info.get("available_years", [])
+        ]
         if task == "Crop Harvest Estimation" and harvest_years:
-            year_index = harvest_years.index(default_year) if default_year in harvest_years else len(harvest_years) - 1
+            year_index = (
+                harvest_years.index(default_year)
+                if default_year in harvest_years
+                else len(harvest_years) - 1
+            )
             year = st.selectbox("Year", harvest_years, index=year_index)
         else:
-            year = st.number_input("Year", min_value=2000, max_value=2100, value=default_year, step=1)
+            year = st.number_input(
+                "Year", min_value=2000, max_value=2100, value=default_year, step=1
+            )
         month = None
         if task != "Crop Harvest Estimation":
-            month = st.selectbox("Available month (1-12)", list(range(1, 13)), index=max(0, min(11, default_month - 1)))
+            month = st.selectbox(
+                "Available month (1-12)",
+                list(range(1, 13)),
+                index=max(0, min(11, default_month - 1)),
+            )
 
         analyze = st.button("Analyze", type="primary")
 
@@ -813,8 +915,13 @@ def app():
     supported_region_label = "Arkansas Crop-ID / SR coverage"
     if task == "Crop Harvest Estimation":
         map_region = HARVEST_DEFAULT_REGION
-        supported_region_label = "DeepSatModels harvest coverage"
-        supported_region = harvest_info.get("supported_region") or {}
+        supported_region_label = "Arkansas harvest coverage"
+        artifact = (harvest_info.get("artifacts") or {}).get(str(int(year))) or {}
+        supported_region = (
+            artifact.get("supported_region")
+            or harvest_info.get("supported_region")
+            or {}
+        )
         try:
             candidate = (
                 float(supported_region["lon_min"]),
@@ -837,10 +944,12 @@ def app():
     ps_scene_features = _load_ps_scene_features() if show_planet_coverage else []
     ps_scene_bounds = _ps_scene_bounds(ps_scene_features)
     if bool(show_tile_grid_debug):
-        st.caption("Tile grid debug enabled. Hover a black tile boundary to see its meta-patch id and lon/lat range.")
+        st.caption(
+            "Tile grid debug enabled. Hover a black tile boundary to see its meta-patch id and lon/lat range."
+        )
     if task == "Crop Harvest Estimation":
         st.caption(
-            "DeepSatModels harvest coverage: "
+            f"Harvest coverage for {int(year)}: "
             f"lon=[{map_region[0]:.4f}, {map_region[2]:.4f}] "
             f"lat=[{map_region[1]:.4f}, {map_region[3]:.4f}]"
         )
@@ -865,7 +974,9 @@ def app():
 
         if task == "Crop Identification":
             try:
-                pred_png, dbg = _api_predict_crop_bbox(backend_url=backend_url, year=int(year), month=int(month), bbox=bbox)
+                pred_png, dbg = _api_predict_crop_bbox(
+                    backend_url=backend_url, year=int(year), month=int(month), bbox=bbox
+                )
             except Exception as exc:
                 st.error(f"Backend request failed: {exc}")
                 return
@@ -888,10 +999,23 @@ def app():
             names = (dbg.get("class_names") or {}) if isinstance(dbg, dict) else {}
             if hist:
                 palette = _major_crops_palette_rgb()
-                df = pd.DataFrame([{"class_id": int(k), "name": names.get(str(k), ""), "pixels": int(v)} for k, v in hist.items()])
+                df = pd.DataFrame(
+                    [
+                        {
+                            "class_id": int(k),
+                            "name": names.get(str(k), ""),
+                            "pixels": int(v),
+                        }
+                        for k, v in hist.items()
+                    ]
+                )
                 df = df.sort_values("pixels", ascending=False).reset_index(drop=True)
-                df["pct"] = (df["pixels"] * 100.0 / max(1, int(df["pixels"].sum()))).round(2)
-                df["color"] = df["class_id"].map(lambda cid: _rgb_to_hex(palette.get(int(cid), (128, 128, 128))))
+                df["pct"] = (
+                    df["pixels"] * 100.0 / max(1, int(df["pixels"].sum()))
+                ).round(2)
+                df["color"] = df["class_id"].map(
+                    lambda cid: _rgb_to_hex(palette.get(int(cid), (128, 128, 128)))
+                )
 
                 st.markdown("#### Legend")
                 legend_ids = (
@@ -926,8 +1050,12 @@ def app():
                 return
             _render_harvest_result(harvest_result)
         else:
-            if ps_scene_bounds is not None and not _bbox_intersects(bbox, ps_scene_bounds):
-                st.warning("Selected bbox is outside Planet PSScene coverage. SR will still run, but Planet reference will be unavailable.")
+            if ps_scene_bounds is not None and not _bbox_intersects(
+                bbox, ps_scene_bounds
+            ):
+                st.warning(
+                    "Selected bbox is outside Planet PSScene coverage. SR will still run, but Planet reference will be unavailable."
+                )
             st.session_state["ar_sr_active_request"] = {
                 "backend_url": str(backend_url),
                 "year": int(year),
@@ -957,7 +1085,9 @@ def app():
             f"Active SR request: year={req_year}, month={req_month}, "
             f"bbox=({req_bbox[0]:.5f}, {req_bbox[1]:.5f}, {req_bbox[2]:.5f}, {req_bbox[3]:.5f})"
         )
-        st.caption("Map zoom/pan reruns no longer clear the active SR request. The app resumes from session state.")
+        st.caption(
+            "Map zoom/pan reruns no longer clear the active SR request. The app resumes from session state."
+        )
 
         cols = st.columns(2)
         with cols[0]:
@@ -1024,7 +1154,9 @@ def app():
                         bbox=req_bbox,
                     )
                 except Exception as exc:
-                    st.session_state["ar_sr_error"] = f"SR completed but result refresh failed: {exc}"
+                    st.session_state["ar_sr_error"] = (
+                        f"SR completed but result refresh failed: {exc}"
+                    )
                     st.warning(st.session_state["ar_sr_error"])
                     return
 
@@ -1036,10 +1168,14 @@ def app():
                         f"SR completed: written={int(progress.get('written', 0))}, "
                         f"skipped={int(progress.get('skipped', 0))}, failed={int(progress.get('failed', 0))}"
                     )
-                    _render_fastdiffsr_result(resp=resp2, year=req_year, month=req_month)
+                    _render_fastdiffsr_result(
+                        resp=resp2, year=req_year, month=req_month
+                    )
                     return
 
-                st.warning("SR job completed, but backend still returned a queued/running response. Click Refresh SR Status.")
+                st.warning(
+                    "SR job completed, but backend still returned a queued/running response. Click Refresh SR Status."
+                )
                 return
 
             st.error(f"SR job ended with state: {state}")
@@ -1079,9 +1215,15 @@ def app():
             if resp.get("status_url"):
                 st.write(f"Status URL: `{resp.get('status_url', '')}`")
             st.write(f"Output dir: `{resp.get('output_dir', '')}`")
-            st.write(f"Requested bbox meta-patches: {int(resp.get('requested_meta_patches', 0))}")
-            st.write(f"Month job total meta-patches: {int(resp.get('total_meta_patches', 0))}")
-            st.write(f"Month job remaining meta-patches: {int(resp.get('missing_meta_patches', 0))}")
+            st.write(
+                f"Requested bbox meta-patches: {int(resp.get('requested_meta_patches', 0))}"
+            )
+            st.write(
+                f"Month job total meta-patches: {int(resp.get('total_meta_patches', 0))}"
+            )
+            st.write(
+                f"Month job remaining meta-patches: {int(resp.get('missing_meta_patches', 0))}"
+            )
             return
 
         st.session_state["ar_sr_result"] = resp

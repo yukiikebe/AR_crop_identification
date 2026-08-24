@@ -6,9 +6,11 @@ This repository supports three Arkansas satellite-imagery workflows:
 | --- | --- | --- | --- |
 | Crop Identification | Displays precomputed crop-classification GeoTIFFs | `ar_pred_api.py` (port 8001) | Precomputed crop predictions |
 | Super Resolution | Applies 4x FastDiffSR super-resolution to Sentinel-2 imagery | `ar_fastdiffsr_api.py` (port 8002) | Sentinel-2 imagery |
-| Crop Harvest Estimation | Estimates harvest start and end dates by crop | `ar_harvest_api.py` (port 8003) | Sentinel-2 imagery and prepared workbooks |
+| Crop Harvest Estimation | Serves precomputed harvest start and end dates by crop | `ar_harvest_api.py` (port 8003) | Precomputed tile-level harvest predictions and source tile bounds |
 
 The browser interface is `app_AR_deploy.py`, a Streamlit application that connects to any of these APIs.
+
+Harvest inference is a separate batch step. The current Harvest deployment provides 2024 predictions for the statewide Arkansas grid only. The batch artifact stores predictions together with the source grid's tile bounds, and API requests only aggregate those saved rows; they do not rerun the model.
 
 ## Workflow
 
@@ -52,6 +54,7 @@ Then follow [Inference](INFERENCE.md) to configure data paths and start only the
 ├── ar_pred_api.py                # Crop prediction API
 ├── ar_fastdiffsr_api.py          # FastDiffSR API and asynchronous jobs
 ├── ar_harvest_api.py             # Harvest-date estimation API
+├── precompute_harvest_predictions.py # Batch harvest prediction generator
 ├── ar_deploy.py                  # Prediction and FastDiffSR utility CLI
 ├── data_download/                # Sentinel-2 and CDL download utilities
 ├── fastdiffsr/                   # FastDiffSR inference code and checkpoint
