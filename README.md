@@ -74,6 +74,6 @@ The module paths above correspond directly to `ar_pred_api.py`, `ar_fastdiffsr_a
 └── super_res310.yml              # Deployment Conda environment
 ```
 
-Datasets, generated predictions, logs, credentials, and experiment outputs must remain outside Git, except for the small deployment-ready 2024 Harvest CSV and metadata under `runtime_data/harvest_predictions/2024/1year/all_indices/`. Set tokens such as `DEEPSAT_MAPBOX_TOKEN` locally when needed.
+Datasets, generated predictions, logs, credentials, and experiment outputs must remain outside Git, except for the deployment-ready Harvest artifacts under `runtime_data/harvest_predictions/output_2024/`, `output_2025_GT/`, and `output_2025_Khoa/`. The 5 km NDVI-only Hybrid models trained on 2020-2024 are stored under `harvest_estimation/models/5km_ndvi/`. Set tokens such as `DEEPSAT_MAPBOX_TOKEN` locally when needed.
 
 FastDiffSR source is derived from [Meng-333/FastDiffSR](https://github.com/Meng-333/FastDiffSR).

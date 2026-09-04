@@ -1,0 +1,254 @@
+{
+  "schema": "metric_final_fit_metrics_v1",
+  "status": "complete",
+  "crop": "Dbl Crop Soybeans/Oats",
+  "model": "hybrid",
+  "model_name": "cnn_rnn_hybrid",
+  "model_config": {
+    "cnn_hidden_channels": [
+      32,
+      64,
+      128
+    ],
+    "rnn_hidden_size": 64,
+    "rnn_num_layers": 2,
+    "rnn_hidden_sizes": [
+      32,
+      64,
+      128
+    ],
+    "dropout": 0.2,
+    "rnn_type": "gru",
+    "bidirectional": false
+  },
+  "window": "6mo",
+  "feature_set": "ndvi_only",
+  "train_years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "test_years": [],
+  "val_fraction": 0.0,
+  "epochs_requested": 40,
+  "epochs_completed": 40,
+  "selected_epoch": 40,
+  "selection_policy": "final_epoch",
+  "num_source": 1825,
+  "num_train": 1825,
+  "num_val": 0,
+  "num_test": 0,
+  "records_by_source_year": {
+    "2020": 512,
+    "2021": 466,
+    "2022": 381,
+    "2023": 179,
+    "2024": 287
+  },
+  "records_by_optimizer_year": {
+    "2020": 512,
+    "2021": 466,
+    "2022": 381,
+    "2023": 179,
+    "2024": 287
+  },
+  "split_audit": {
+    "source_record_years": [
+      2020,
+      2021,
+      2022,
+      2023,
+      2024
+    ],
+    "optimizer_record_years": [
+      2020,
+      2021,
+      2022,
+      2023,
+      2024
+    ],
+    "validation_record_years": [],
+    "test_record_years": [],
+    "train_validation_overlap_count": 0,
+    "train_test_overlap_count": 0,
+    "validation_test_overlap_count": 0,
+    "unassigned_record_count": 0,
+    "all_source_records_receive_weight_updates": true
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.15844797533668883
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.12624802465308202
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.12667096798550592
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.12342499891372576
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.12308859790841194
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.12093631690495635
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.11980563491991121
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.119769604532686
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.1203736821755971
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.11778528812813432
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.11709653099105782
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.11706058815734027
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.11840409589956885
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.11542957004618971
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.11630213867311608
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.11720887462570242
+    },
+    {
+      "epoch": 17,
+      "train_loss": 0.1186356909307715
+    },
+    {
+      "epoch": 18,
+      "train_loss": 0.11634517387168049
+    },
+    {
+      "epoch": 19,
+      "train_loss": 0.11517169802972715
+    },
+    {
+      "epoch": 20,
+      "train_loss": 0.11637390246130015
+    },
+    {
+      "epoch": 21,
+      "train_loss": 0.11500301219012639
+    },
+    {
+      "epoch": 22,
+      "train_loss": 0.11637496451808982
+    },
+    {
+      "epoch": 23,
+      "train_loss": 0.11488376093237368
+    },
+    {
+      "epoch": 24,
+      "train_loss": 0.11465293629528725
+    },
+    {
+      "epoch": 25,
+      "train_loss": 0.11523551108085946
+    },
+    {
+      "epoch": 26,
+      "train_loss": 0.11565210536734699
+    },
+    {
+      "epoch": 27,
+      "train_loss": 0.11473221192621205
+    },
+    {
+      "epoch": 28,
+      "train_loss": 0.11423045799340287
+    },
+    {
+      "epoch": 29,
+      "train_loss": 0.11535778984631577
+    },
+    {
+      "epoch": 30,
+      "train_loss": 0.11497759654097361
+    },
+    {
+      "epoch": 31,
+      "train_loss": 0.11463697092173851
+    },
+    {
+      "epoch": 32,
+      "train_loss": 0.11320242948728065
+    },
+    {
+      "epoch": 33,
+      "train_loss": 0.11464982207507303
+    },
+    {
+      "epoch": 34,
+      "train_loss": 0.11400225209863218
+    },
+    {
+      "epoch": 35,
+      "train_loss": 0.11480682245672566
+    },
+    {
+      "epoch": 36,
+      "train_loss": 0.11472721902474965
+    },
+    {
+      "epoch": 37,
+      "train_loss": 0.11418088208322656
+    },
+    {
+      "epoch": 38,
+      "train_loss": 0.11361191119233223
+    },
+    {
+      "epoch": 39,
+      "train_loss": 0.11377993934775052
+    },
+    {
+      "epoch": 40,
+      "train_loss": 0.11430119863928181
+    }
+  ],
+  "train_metrics": {
+    "mae_start": 44.19561767578125,
+    "mae_end": 37.231231689453125,
+    "mae_mean": 40.71342468261719,
+    "mae_window": 62.28602600097656,
+    "iou_mean": 0.5211005210876465,
+    "ordered_pct": 1.0
+  },
+  "val_metrics": {},
+  "test_metrics": {},
+  "checkpoint": "harvest_estimation/models/5km_ndvi/6mo/ndvi_only/Dbl Crop Soybeans_Oats/final_model.pt",
+  "wandb": "disabled"
+}

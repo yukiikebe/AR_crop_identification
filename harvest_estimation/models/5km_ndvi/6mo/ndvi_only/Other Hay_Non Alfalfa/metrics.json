@@ -1,0 +1,254 @@
+{
+  "schema": "metric_final_fit_metrics_v1",
+  "status": "complete",
+  "crop": "Other Hay/Non Alfalfa",
+  "model": "hybrid",
+  "model_name": "cnn_rnn_hybrid",
+  "model_config": {
+    "cnn_hidden_channels": [
+      32,
+      64,
+      128
+    ],
+    "rnn_hidden_size": 64,
+    "rnn_num_layers": 2,
+    "rnn_hidden_sizes": [
+      32,
+      64,
+      128
+    ],
+    "dropout": 0.2,
+    "rnn_type": "gru",
+    "bidirectional": false
+  },
+  "window": "6mo",
+  "feature_set": "ndvi_only",
+  "train_years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "test_years": [],
+  "val_fraction": 0.0,
+  "epochs_requested": 40,
+  "epochs_completed": 40,
+  "selected_epoch": 40,
+  "selection_policy": "final_epoch",
+  "num_source": 32569,
+  "num_train": 32569,
+  "num_val": 0,
+  "num_test": 0,
+  "records_by_source_year": {
+    "2020": 7835,
+    "2021": 7556,
+    "2022": 7638,
+    "2023": 7625,
+    "2024": 1915
+  },
+  "records_by_optimizer_year": {
+    "2020": 7835,
+    "2021": 7556,
+    "2022": 7638,
+    "2023": 7625,
+    "2024": 1915
+  },
+  "split_audit": {
+    "source_record_years": [
+      2020,
+      2021,
+      2022,
+      2023,
+      2024
+    ],
+    "optimizer_record_years": [
+      2020,
+      2021,
+      2022,
+      2023,
+      2024
+    ],
+    "validation_record_years": [],
+    "test_record_years": [],
+    "train_validation_overlap_count": 0,
+    "train_test_overlap_count": 0,
+    "validation_test_overlap_count": 0,
+    "unassigned_record_count": 0,
+    "all_source_records_receive_weight_updates": true
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.09441129209938061
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.09080998821131939
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.08989952115554828
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.08932832890536503
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.08909094738902251
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.08887515962261129
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.08849340317668868
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.08826202721994947
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.08792027958292653
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.08798061200180551
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.08773452528053258
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.08754032960780886
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.0873244145885739
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.087213315604752
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.08724985423133351
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.08708940314472083
+    },
+    {
+      "epoch": 17,
+      "train_loss": 0.08698451890454857
+    },
+    {
+      "epoch": 18,
+      "train_loss": 0.08705658094776234
+    },
+    {
+      "epoch": 19,
+      "train_loss": 0.08709147368643852
+    },
+    {
+      "epoch": 20,
+      "train_loss": 0.0866017506256754
+    },
+    {
+      "epoch": 21,
+      "train_loss": 0.08672805368257933
+    },
+    {
+      "epoch": 22,
+      "train_loss": 0.08680668329626332
+    },
+    {
+      "epoch": 23,
+      "train_loss": 0.08662374722281938
+    },
+    {
+      "epoch": 24,
+      "train_loss": 0.08665711627692929
+    },
+    {
+      "epoch": 25,
+      "train_loss": 0.08668554920621162
+    },
+    {
+      "epoch": 26,
+      "train_loss": 0.08674261824974294
+    },
+    {
+      "epoch": 27,
+      "train_loss": 0.0865997877274499
+    },
+    {
+      "epoch": 28,
+      "train_loss": 0.08666176723020692
+    },
+    {
+      "epoch": 29,
+      "train_loss": 0.08660706415607271
+    },
+    {
+      "epoch": 30,
+      "train_loss": 0.08658054127619862
+    },
+    {
+      "epoch": 31,
+      "train_loss": 0.08654170999485727
+    },
+    {
+      "epoch": 32,
+      "train_loss": 0.08640644480340325
+    },
+    {
+      "epoch": 33,
+      "train_loss": 0.08651625098052479
+    },
+    {
+      "epoch": 34,
+      "train_loss": 0.08639389316949807
+    },
+    {
+      "epoch": 35,
+      "train_loss": 0.086289489766633
+    },
+    {
+      "epoch": 36,
+      "train_loss": 0.08626360901933354
+    },
+    {
+      "epoch": 37,
+      "train_loss": 0.08656176558616152
+    },
+    {
+      "epoch": 38,
+      "train_loss": 0.08645082301672069
+    },
+    {
+      "epoch": 39,
+      "train_loss": 0.08638896381239364
+    },
+    {
+      "epoch": 40,
+      "train_loss": 0.08642349214884386
+    }
+  ],
+  "train_metrics": {
+    "mae_start": 44.961097717285156,
+    "mae_end": 17.059228897094727,
+    "mae_mean": 31.01016330718994,
+    "mae_window": 48.954402923583984,
+    "iou_mean": 0.5575604438781738,
+    "ordered_pct": 1.0
+  },
+  "val_metrics": {},
+  "test_metrics": {},
+  "checkpoint": "harvest_estimation/models/5km_ndvi/6mo/ndvi_only/Other Hay_Non Alfalfa/final_model.pt",
+  "wandb": "disabled"
+}

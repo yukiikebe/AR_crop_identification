@@ -163,7 +163,7 @@ export DEEPSAT_FASTDIFFSR_EE_PROJECT=<earth-engine-project>
 
 ### Crop Harvest Estimation
 
-The repository includes the deployment-ready 2024 statewide Arkansas predictions at `runtime_data/harvest_predictions/2024/1year/all_indices/`. Skip the following GPU batch step when using that artifact. Run it only to regenerate or replace the predictions; the API does not run the model itself.
+The repository includes the deployment-ready 2024 statewide Arkansas predictions at `runtime_data/harvest_predictions/output_2024/1year/all_indices/`. It also includes 5 km, NDVI-only Hybrid inference artifacts for 2025 under `output_2025_GT/` and `output_2025_Khoa/`, with separate `1year`, `6mo`, and `9mo` subdirectories. Skip the following GPU batch step when using an included artifact. Run it only to regenerate or replace the predictions; the API does not run the model itself.
 
 ```bash
 export DEEPSAT_HARVEST_DATASET_ROOT=/local/data/sentinel2
@@ -178,7 +178,7 @@ python precompute_harvest_predictions.py \
   --device cuda
 ```
 
-The command writes `<predictions-root>/2024/<window>/<feature-set>/predictions.csv` and `metadata.json`. Metadata includes the exact WGS84 bounds of every source tile in the statewide Arkansas grid. Existing artifacts are not replaced unless `--overwrite` is passed. Override `--code-root`, `--model-root`, `--model-window`, or `--feature-set` only when generating another compatible artifact.
+The command writes `<predictions-root>/output_2024/<window>/<feature-set>/predictions.csv` and `metadata.json`. Metadata includes the exact WGS84 bounds of every source tile in the statewide Arkansas grid. Existing artifacts are not replaced unless `--overwrite` is passed. Override `--code-root`, `--model-root`, `--model-window`, or `--feature-set` only when generating another compatible artifact.
 
 Use `--model-dir` to select an exact compatible checkpoint leaf. To split crops across multiple visible CUDA devices, replace `--device cuda` with, for example, `--devices cuda:0 cuda:1 cuda:2 cuda:3`. Each device runs a separate worker and the final artifact is written only after every worker succeeds.
 

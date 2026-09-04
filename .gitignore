@@ -96,18 +96,16 @@ make_dataset/fastdiffsr_s2_planet_strict_brightness_filtered/pairs_manifest.filt
 /saved_models/
 /train_and_eval/
 /utils/
-# Keep runtime data local except for the small, deployment-ready 2024 Harvest artifact.
+# Keep runtime data local except for deployment-ready Harvest artifacts.
 /runtime_data/*
 !/runtime_data/harvest_predictions/
 /runtime_data/harvest_predictions/*
-!/runtime_data/harvest_predictions/2024/
-/runtime_data/harvest_predictions/2024/*
-!/runtime_data/harvest_predictions/2024/1year/
-/runtime_data/harvest_predictions/2024/1year/*
-!/runtime_data/harvest_predictions/2024/1year/all_indices/
-/runtime_data/harvest_predictions/2024/1year/all_indices/*
-!/runtime_data/harvest_predictions/2024/1year/all_indices/predictions.csv
-!/runtime_data/harvest_predictions/2024/1year/all_indices/metadata.json
+!/runtime_data/harvest_predictions/output_2024/
+!/runtime_data/harvest_predictions/output_2024/**
+!/runtime_data/harvest_predictions/output_2025_GT/
+!/runtime_data/harvest_predictions/output_2025_GT/**
+!/runtime_data/harvest_predictions/output_2025_Khoa/
+!/runtime_data/harvest_predictions/output_2025_Khoa/**
 /tmp/
 
 # Locally retained legacy files removed from the deployment Git index.

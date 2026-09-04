@@ -151,7 +151,9 @@ def _supported_region(tile_bounds: dict[str, list[float]]) -> dict[str, float]:
 def _artifact_paths(
     *, predictions_root: Path, year: int, model_window: str, feature_set: str
 ) -> tuple[Path, Path]:
-    artifact_dir = predictions_root / str(int(year)) / model_window / feature_set
+    artifact_dir = (
+        predictions_root / f"output_{int(year)}" / model_window / feature_set
+    )
     return artifact_dir / "predictions.csv", artifact_dir / "metadata.json"
 
 

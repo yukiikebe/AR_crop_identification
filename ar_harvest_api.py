@@ -76,13 +76,23 @@ def _settings() -> dict:
 def _prediction_path(
     *, predictions_root: Path, year: int, model_window: str, feature_set: str
 ) -> Path:
-    return (
+    output_path = (
+        predictions_root
+        / f"output_{int(year)}"
+        / model_window
+        / feature_set
+        / "predictions.csv"
+    )
+    legacy_path = (
         predictions_root
         / str(int(year))
         / model_window
         / feature_set
         / "predictions.csv"
     )
+    if output_path.is_file() or not legacy_path.is_file():
+        return output_path
+    return legacy_path
 
 
 def _metadata_path(prediction_path: Path) -> Path:
@@ -95,12 +105,15 @@ def _available_years(
     if not predictions_root.is_dir():
         return []
 
-    years: list[int] = []
+    years: set[int] = set()
     for year_dir in predictions_root.iterdir():
         if not year_dir.is_dir():
             continue
+        year_name = year_dir.name
+        if year_name.startswith("output_"):
+            year_name = year_name.removeprefix("output_")
         try:
-            year = int(year_dir.name)
+            year = int(year_name)
         except ValueError:
             continue
         path = _prediction_path(
@@ -110,7 +123,7 @@ def _available_years(
             feature_set=feature_set,
         )
         if path.is_file():
-            years.append(year)
+            years.add(year)
     return sorted(years)
 
 

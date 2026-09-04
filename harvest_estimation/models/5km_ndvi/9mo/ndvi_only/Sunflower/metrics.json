@@ -1,0 +1,254 @@
+{
+  "schema": "metric_final_fit_metrics_v1",
+  "status": "complete",
+  "crop": "Sunflower",
+  "model": "hybrid",
+  "model_name": "cnn_rnn_hybrid",
+  "model_config": {
+    "cnn_hidden_channels": [
+      32,
+      64,
+      128
+    ],
+    "rnn_hidden_size": 64,
+    "rnn_num_layers": 2,
+    "rnn_hidden_sizes": [
+      32,
+      64,
+      128
+    ],
+    "dropout": 0.2,
+    "rnn_type": "gru",
+    "bidirectional": false
+  },
+  "window": "9mo",
+  "feature_set": "ndvi_only",
+  "train_years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "test_years": [],
+  "val_fraction": 0.0,
+  "epochs_requested": 40,
+  "epochs_completed": 40,
+  "selected_epoch": 40,
+  "selection_policy": "final_epoch",
+  "num_source": 2168,
+  "num_train": 2168,
+  "num_val": 0,
+  "num_test": 0,
+  "records_by_source_year": {
+    "2020": 270,
+    "2021": 276,
+    "2022": 139,
+    "2023": 197,
+    "2024": 1286
+  },
+  "records_by_optimizer_year": {
+    "2020": 270,
+    "2021": 276,
+    "2022": 139,
+    "2023": 197,
+    "2024": 1286
+  },
+  "split_audit": {
+    "source_record_years": [
+      2020,
+      2021,
+      2022,
+      2023,
+      2024
+    ],
+    "optimizer_record_years": [
+      2020,
+      2021,
+      2022,
+      2023,
+      2024
+    ],
+    "validation_record_years": [],
+    "test_record_years": [],
+    "train_validation_overlap_count": 0,
+    "train_test_overlap_count": 0,
+    "validation_test_overlap_count": 0,
+    "unassigned_record_count": 0,
+    "all_source_records_receive_weight_updates": true
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.1312363746531335
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.10302074929884879
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.10288446036432063
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.10222915103624668
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.10197862721567225
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.10050822508511068
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.10114523086600638
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.10055015409344677
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.10055229067802429
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.10054831330516681
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.10074729169976668
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.09968938389827404
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.09921342172965793
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.09941255565169113
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.09882039782965756
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.09902340781314786
+    },
+    {
+      "epoch": 17,
+      "train_loss": 0.09861810769322174
+    },
+    {
+      "epoch": 18,
+      "train_loss": 0.09830672343388695
+    },
+    {
+      "epoch": 19,
+      "train_loss": 0.09851396661183051
+    },
+    {
+      "epoch": 20,
+      "train_loss": 0.09798900310183803
+    },
+    {
+      "epoch": 21,
+      "train_loss": 0.09822882456203229
+    },
+    {
+      "epoch": 22,
+      "train_loss": 0.09671737063964794
+    },
+    {
+      "epoch": 23,
+      "train_loss": 0.09695867990655653
+    },
+    {
+      "epoch": 24,
+      "train_loss": 0.09836774146204945
+    },
+    {
+      "epoch": 25,
+      "train_loss": 0.09741791730877218
+    },
+    {
+      "epoch": 26,
+      "train_loss": 0.09713835838316112
+    },
+    {
+      "epoch": 27,
+      "train_loss": 0.09686363232751614
+    },
+    {
+      "epoch": 28,
+      "train_loss": 0.09783169335764713
+    },
+    {
+      "epoch": 29,
+      "train_loss": 0.09668894139603056
+    },
+    {
+      "epoch": 30,
+      "train_loss": 0.09791023666348404
+    },
+    {
+      "epoch": 31,
+      "train_loss": 0.09755862850654609
+    },
+    {
+      "epoch": 32,
+      "train_loss": 0.09749618604284371
+    },
+    {
+      "epoch": 33,
+      "train_loss": 0.09687518270693142
+    },
+    {
+      "epoch": 34,
+      "train_loss": 0.09651109026366934
+    },
+    {
+      "epoch": 35,
+      "train_loss": 0.0967952022363339
+    },
+    {
+      "epoch": 36,
+      "train_loss": 0.0968537398260018
+    },
+    {
+      "epoch": 37,
+      "train_loss": 0.09701147367593548
+    },
+    {
+      "epoch": 38,
+      "train_loss": 0.09680891017742263
+    },
+    {
+      "epoch": 39,
+      "train_loss": 0.0963066846297236
+    },
+    {
+      "epoch": 40,
+      "train_loss": 0.09574536789497326
+    }
+  ],
+  "train_metrics": {
+    "mae_start": 42.557655334472656,
+    "mae_end": 26.884225845336914,
+    "mae_mean": 34.720940589904785,
+    "mae_window": 52.59040451049805,
+    "iou_mean": 0.47513818740844727,
+    "ordered_pct": 1.0
+  },
+  "val_metrics": {},
+  "test_metrics": {},
+  "checkpoint": "harvest_estimation/models/5km_ndvi/9mo/ndvi_only/Sunflower/final_model.pt",
+  "wandb": "disabled"
+}
